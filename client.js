@@ -46,6 +46,18 @@ window.__ModuleLoader__.load({
 .d4p-url code{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .d4p-url button{flex:none;min-height:30px;padding:4px 10px;border:1px solid var(--dsw-alias-border-l2,#d4d8e0);border-radius:8px;background:transparent;color:inherit;font:12px/1.2 inherit;cursor:pointer}
 .d4p-url button:hover{background:var(--dsw-alias-interactive-bg-hover,#f1f3f6)}
+.d4p-url-actions{display:flex;flex:none;align-items:center;gap:6px}
+.d4p-url .d4p-qr-btn{display:grid;place-items:center;width:32px;min-width:32px;min-height:30px;padding:0;border:1px solid var(--dsw-alias-border-l2,#d4d8e0);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.d4p-url .d4p-qr-btn:hover{background:var(--dsw-alias-interactive-bg-hover,#f1f3f6)}
+.d4p-url .d4p-qr-btn.is-active{border-color:var(--dsw-alias-brand-primary,#4d6bfe);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#4d6bfe) 12%,transparent);color:var(--dsw-alias-brand-primary,#4d6bfe)}
+.d4p-url .d4p-qr-btn:disabled{opacity:.45;cursor:default}
+.d4p-qr{display:flex;align-items:center;gap:14px;margin-top:10px;padding:12px;border:1px solid var(--dsw-alias-border-l1,#e3e6ec);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#fff)}
+.d4p-qr-code{flex:none;padding:8px;border-radius:10px;background:#fff}
+.d4p-qr-code svg{display:block;width:152px;height:152px}
+.d4p-qr-info{flex:1 1 auto;min-width:0}
+.d4p-qr-title{margin:0;font-size:13px;font-weight:650}
+.d4p-qr-info code{display:block;margin:4px 0 6px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.d4p-qr-info .d4p-muted{margin:0 0 10px}
 .d4p-field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .d4p-field label{color:var(--dsw-alias-label-secondary,#646b78);font-size:12px;font-weight:600}
 .d4p-field input{height:38px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2,#d4d8e0);border-radius:9px;background:var(--dsw-alias-bg-layer-2,#fff);color:inherit;font:14px/1.4 inherit;outline:none}
@@ -82,6 +94,11 @@ window.__ModuleLoader__.load({
       'address.none': 'Turn LAN access on to see the addresses this phone can open.',
       'address.empty': 'No LAN address was detected. Check the Wi-Fi or Ethernet connection.',
       'address.hint': 'Connect the phone and the computer to the same Wi-Fi, then open one of these addresses in the phone browser.',
+      'qr.show': 'Show QR code',
+      'qr.hide': 'Hide QR code',
+      'qr.title': 'Scan to open',
+      'qr.alt': 'QR code for',
+      'qr.hint': 'Scan with the phone camera to open this address directly.',
       'password.title': 'Access password',
       'password.label': 'New password',
       'password.confirm': 'Confirm password',
@@ -114,6 +131,8 @@ window.__ModuleLoader__.load({
       'error.upstream_auth_unavailable': 'This DeepSeek Harness does not expose a web session. Restart DSH.',
       'error.disposed': 'This plugin is shutting down.',
       'error.internal_error': 'The operation failed. Try again.',
+      'error.invalid_text': 'The address could not be encoded.',
+      'error.qr_failed': 'Could not generate the QR code.',
       'error.load_failed': 'Could not read the gateway status.',
       'error.method_not_allowed': 'The operation failed. Try again.',
       'error.body_too_large': 'The request was too large.',
@@ -135,6 +154,11 @@ window.__ModuleLoader__.load({
       'address.none': '开启后，这里会显示手机可以打开的地址。',
       'address.empty': '没有检测到局域网地址，请检查 Wi-Fi 或有线网络。',
       'address.hint': '让手机和电脑连接同一个 Wi-Fi，然后在手机浏览器里打开上面的地址。',
+      'qr.show': '显示二维码',
+      'qr.hide': '隐藏二维码',
+      'qr.title': '扫码打开',
+      'qr.alt': '二维码：',
+      'qr.hint': '用手机相机扫描，直接打开这个地址。',
       'password.title': '访问密码',
       'password.label': '新密码',
       'password.confirm': '确认密码',
@@ -167,6 +191,8 @@ window.__ModuleLoader__.load({
       'error.upstream_auth_unavailable': '当前 DeepSeek Harness 没有可用的网页会话，请重启 DSH。',
       'error.disposed': '插件正在关闭。',
       'error.internal_error': '操作失败，请重试。',
+      'error.invalid_text': '这个地址无法生成二维码。',
+      'error.qr_failed': '二维码生成失败。',
       'error.load_failed': '无法读取网关状态。',
       'error.method_not_allowed': '操作失败，请重试。',
       'error.body_too_large': '请求内容过大。',
@@ -185,6 +211,24 @@ window.__ModuleLoader__.load({
       strokeLinecap: 'round',
       strokeLinejoin: 'round',
     }, h('rect', { x: 4, y: 1, width: 8, height: 14, rx: 2 }), h('path', { d: 'M7 12h2' }))
+
+    const QR_ICON = h('svg', {
+      'aria-hidden': true,
+      width: 15,
+      height: 15,
+      viewBox: '0 0 16 16',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.4,
+    },
+    h('rect', { x: 1.2, y: 1.2, width: 4.6, height: 4.6, rx: 0.9 }),
+    h('rect', { x: 10.2, y: 1.2, width: 4.6, height: 4.6, rx: 0.9 }),
+    h('rect', { x: 1.2, y: 10.2, width: 4.6, height: 4.6, rx: 0.9 }),
+    h('path', {
+      d: 'M10.4 10.4h1.6v1.6h-1.6zM13.2 10.4h1.6v1.6h-1.6zM10.4 13.2h1.6v1.6h-1.6zM13.2 13.2h1.6v1.6h-1.6z',
+      fill: 'currentColor',
+      stroke: 'none',
+    }))
 
     async function request(path, options) {
       const response = await fetch(`${API}${path}`, {
@@ -245,6 +289,18 @@ window.__ModuleLoader__.load({
       return document.cookie.split(';').some((part) => part.trim() === marker)
     }
 
+    /** One SVG path covering every dark module of a host-generated matrix. */
+    function qrPath(qr) {
+      let path = ''
+      for (let row = 0; row < qr.size; row += 1) {
+        const bits = qr.modules[row] ?? ''
+        for (let column = 0; column < qr.size; column += 1) {
+          if (bits[column] === '1') path += `M${column} ${row}h1v1h-1z`
+        }
+      }
+      return path
+    }
+
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
@@ -301,6 +357,9 @@ window.__ModuleLoader__.load({
           const [confirmation, setConfirmation] = useState('')
           const [portDraft, setPortDraft] = useState('')
           const [copied, setCopied] = useState('')
+          const [qr, setQr] = useState(null)
+          const [qrError, setQrError] = useState(null)
+          const [qrBusy, setQrBusy] = useState(false)
           const passwordRef = useRef(null)
           const closeRef = useRef(null)
           const copyTimer = useRef(null)
@@ -336,6 +395,18 @@ window.__ModuleLoader__.load({
             window.addEventListener('keydown', onKeyDown)
             return () => window.removeEventListener('keydown', onKeyDown)
           }, [isOpen])
+
+          useEffect(() => {
+            if (isOpen) return
+            setQr(null)
+            setQrError(null)
+          }, [isOpen])
+
+          useEffect(() => {
+            if (qr === null || status === null) return
+            const urls = Array.isArray(status.urls) ? status.urls : []
+            if (!urls.some((entry) => entry.url === qr.url)) setQr(null)
+          }, [status, qr])
 
           useEffect(() => {
             if (!isOpen) return
@@ -380,6 +451,27 @@ window.__ModuleLoader__.load({
             if (copyTimer.current !== null) window.clearTimeout(copyTimer.current)
             copyTimer.current = window.setTimeout(() => setCopied(''), 1600)
           }, [])
+
+          const toggleQr = useCallback(async (url) => {
+            if (qr?.url === url) {
+              setQr(null)
+              return
+            }
+            setQrBusy(true)
+            setQrError(null)
+            try {
+              const data = await request(`/qr?text=${encodeURIComponent(url)}`)
+              if (data?.qr && Number.isInteger(data.qr.size) && Array.isArray(data.qr.modules)) {
+                setQr({ url, size: data.qr.size, modules: data.qr.modules })
+              } else {
+                setQrError(t('error.qr_failed'))
+              }
+            } catch (error) {
+              setQrError(errorText(t, error?.code))
+            } finally {
+              setQrBusy(false)
+            }
+          }, [qr, t])
 
           if (!isOpen) return null
 
@@ -488,11 +580,49 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'd4p-url-main' },
                     h('span', { className: 'd4p-url-iface' }, entry.interface),
                     h('code', null, entry.url)),
-                  h('button', {
-                    type: 'button',
-                    onClick: () => { void copy(entry.url) },
-                  }, copied === entry.url ? t('address.copied') : t('address.copy')))))
+                  h('div', { className: 'd4p-url-actions' },
+                    h('button', {
+                      type: 'button',
+                      onClick: () => { void copy(entry.url) },
+                    }, copied === entry.url ? t('address.copied') : t('address.copy')),
+                    h('button', {
+                      type: 'button',
+                      className: `d4p-qr-btn${qr?.url === entry.url ? ' is-active' : ''}`,
+                      'aria-label': qr?.url === entry.url ? t('qr.hide') : t('qr.show'),
+                      'aria-expanded': qr?.url === entry.url,
+                      title: qr?.url === entry.url ? t('qr.hide') : t('qr.show'),
+                      disabled: qrBusy,
+                      onClick: () => { void toggleQr(entry.url) },
+                    }, QR_ICON)))))
                 : h('p', { className: 'd4p-muted' }, running ? t('address.empty') : hasPassword ? t('address.none') : t('status.noPassword')),
+
+              qr !== null
+                ? h('div', { className: 'd4p-qr' },
+                  h('div', { className: 'd4p-qr-code' },
+                    h('svg', {
+                      viewBox: `${-4} ${-4} ${qr.size + 8} ${qr.size + 8}`,
+                      width: 152,
+                      height: 152,
+                      role: 'img',
+                      'aria-label': `${t('qr.alt')} ${qr.url}`,
+                      shapeRendering: 'crispEdges',
+                    },
+                    h('rect', { x: -4, y: -4, width: qr.size + 8, height: qr.size + 8, fill: '#fff' }),
+                    h('path', { d: qrPath(qr), fill: '#000' }))),
+                  h('div', { className: 'd4p-qr-info' },
+                    h('p', { className: 'd4p-qr-title' }, t('qr.title')),
+                    h('code', null, qr.url),
+                    h('p', { className: 'd4p-muted' }, t('qr.hint')),
+                    h('button', {
+                      type: 'button',
+                      className: 'd4p-secondary',
+                      onClick: () => { void copy(qr.url) },
+                    }, copied === qr.url ? t('address.copied') : t('address.copy'))))
+                : null,
+
+              qrError !== null
+                ? h('p', { className: 'd4p-feedback is-error', role: 'alert' }, qrError)
+                : null,
 
               h('p', { className: 'd4p-muted' }, t('address.hint')),
 

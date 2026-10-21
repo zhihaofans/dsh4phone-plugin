@@ -11,6 +11,7 @@
 
 - 在 DeepSeek Harness 左下角加入「手机访问」入口。
 - 在电脑上设置一个自定义密码，开启局域网访问后，用手机打开面板里显示的地址。
+- 每个地址旁有二维码按钮，点开即可用手机相机扫描；二维码在本机生成，不经过任何外部服务。
 - 手机登录一次后 30 天内免登录；修改密码或点「让所有手机退出」会立刻让旧会话失效。
 - 手机端和电脑端是同一份 DSH 页面、会话、工作区与工具；插件只做反向代理，不复制数据。
 - 只监听私有局域网地址，不做公网穿透，也不会把手机流量转发到管理接口。
@@ -70,7 +71,7 @@ $DSH_HOME/dsh4phone/state.json
 ## 已知限制（v0.0.1）
 
 - 手机打开的是 DSH 的桌面网页，暂未提供专门的触屏布局；窄屏下部分区域可能偏挤。
-- 没有 HTTPS 证书、二维码、mDNS 自动发现；请手动输入/复制地址。
+- 没有 HTTPS 证书、mDNS 自动发现；请手动输入/复制地址，或点地址旁的二维码按钮扫码。
 - 管理面板只在电脑端 DSH 页面显示；手机端只有「输入密码进入 DSH」这一件事，不能远程改密码或开关网关。
 - 上游使用 DSH 自己的 loopback 登录 token；DSH 重启后插件会自动重新换取会话，无需重新设置密码。
 - 仅验证了 macOS Desktop；其他平台/版本未验证。
@@ -87,6 +88,7 @@ $DSH_HOME/dsh4phone/state.json
 ```
 
 - `index.js`：Host 半，网关、登录页、密码、会话、管理 API、DSH 上游会话换取。
+- `qr.js`：内置的二维码编码器（qrcode-generator 1.4.4，MIT，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）。
 - `client.js`：Client 半，侧栏按钮 + `shell.overlay` 面板（电脑端注册，网关页面自动隐藏）。
 - `cordis.patch.yml`：插入 `dsh4phone` 插件行。
 - 无第三方运行时依赖。
@@ -98,7 +100,7 @@ npm run check   # 语法检查
 npm test        # 隔离 Host 网关测试 + 客户端网关页面门禁测试
 ```
 
-`test/host.test.mjs` 使用假 DSH 上游、假 Cordis ctx 和临时 `DSH_HOME`，不会读写正在运行的 profile 或真实密码；覆盖登录、Cookie、代理头改写、重定向、WebSocket、管理接口隔离和公开静态文件。`test/client.test.mjs` 验证网关端口标记只隐藏手机页面，电脑端（含自定义 host/协议）始终注册面板。
+`test/host.test.mjs` 使用假 DSH 上游、假 Cordis ctx 和临时 `DSH_HOME`，不会读写正在运行的 profile 或真实密码；覆盖登录、Cookie、代理头改写、重定向、WebSocket、管理接口隔离、公开静态文件和二维码矩阵。`test/client.test.mjs` 验证网关端口标记只隐藏手机页面，电脑端（含自定义 host/协议）始终注册面板。
 
 修改 Host 半（`index.js`）后需要重启或重新启用插件才会加载新的模块；Client 半（`client.js`）随客户端图更新加载。
 

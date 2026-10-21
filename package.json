@@ -19,12 +19,14 @@
   "files": [
     "index.js",
     "client.js",
+    "qr.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {
     "dsh": ">=0.2.0"

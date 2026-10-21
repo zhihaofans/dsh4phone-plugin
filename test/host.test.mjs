@@ -109,6 +109,18 @@ for (let attempt = 0; attempt < 50; attempt++) {
 check('admin status reachable', status !== null)
 check('starts disabled without password', status?.enabled === false && status?.running === false)
 
+const qrResult = await adminCall(`/qr?text=${encodeURIComponent('http://192.168.5.24:3721')}`)
+const matrix = qrResult.data?.qr
+const finder = ['1111111', '1000001', '1011101', '1011101', '1011101', '1000001', '1111111']
+check('qr endpoint returns a valid matrix', qrResult.status === 200
+  && Number.isInteger(matrix?.size) && matrix.size >= 21 && (matrix.size - 21) % 4 === 0
+  && matrix.modules.length === matrix.size
+  && matrix.modules.every((row) => row.length === matrix.size && /^[01]+$/u.test(row)))
+check('qr matrix has the top-left finder pattern', matrix !== undefined
+  && finder.every((row, index) => matrix.modules[index].slice(0, 7) === row))
+const emptyQr = await adminCall('/qr?text=')
+check('qr endpoint rejects empty text', emptyQr.status === 400 && emptyQr.data.error === 'invalid_text')
+
 const portA = await freePort()
 const portB = await freePort()
 const initialPort = await adminCall('/port', { port: portA })

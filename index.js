@@ -19,6 +19,7 @@ import { createRequire } from 'node:module'
 import { homedir, networkInterfaces } from 'node:os'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
+import qrcode from './qr.js'
 
 const scrypt = promisify(scryptCallback)
 const manifest = createRequire(import.meta.url)('./package.json')
@@ -381,6 +382,17 @@ export function apply(ctx) {
     if (pathname === `${ADMIN_PREFIX}/status`) {
       if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { ok: false, error: 'method_not_allowed' })
       return sendJson(res, 200, { ok: true, status: statusSnapshot() })
+    }
+
+    if (pathname === `${ADMIN_PREFIX}/qr`) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { ok: false, error: 'method_not_allowed' })
+      const text = url.searchParams.get('text') ?? ''
+      if (text === '' || text.length > 512) return sendJson(res, 400, { ok: false, error: 'invalid_text' })
+      try {
+        return sendJson(res, 200, { ok: true, qr: qrPayload(text) })
+      } catch {
+        return sendJson(res, 500, { ok: false, error: 'qr_failed' })
+      }
     }
 
     if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method_not_allowed' })
@@ -1005,6 +1017,36 @@ function lanAddresses(port) {
   entries.sort((left, right) => rankInterface(left.interface) - rankInterface(right.interface)
     || left.address.localeCompare(right.address))
   return entries
+}
+
+const QR_CACHE_LIMIT = 32
+const qrCache = new Map()
+
+/**
+ * Encode one string as a QR matrix (ECC M, the smallest version that fits).
+ * @param {string} text - short address text from the control panel.
+ * @returns {{ size: number, modules: string[] }} Row bitstrings.
+ */
+function qrPayload(text) {
+  const cached = qrCache.get(text)
+  if (cached !== undefined) return cached
+  const qr = qrcode(0, 'M')
+  qr.addData(text)
+  qr.make()
+  const size = qr.getModuleCount()
+  const modules = []
+  for (let row = 0; row < size; row += 1) {
+    let bits = ''
+    for (let column = 0; column < size; column += 1) bits += qr.isDark(row, column) ? '1' : '0'
+    modules.push(bits)
+  }
+  const payload = { size, modules }
+  if (qrCache.size >= QR_CACHE_LIMIT) {
+    const oldest = qrCache.keys().next().value
+    if (oldest !== undefined) qrCache.delete(oldest)
+  }
+  qrCache.set(text, payload)
+  return payload
 }
 
 function rankInterface(name) {
