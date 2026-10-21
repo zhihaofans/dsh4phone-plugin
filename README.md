@@ -5,7 +5,6 @@
 - 插件版本：`0.0.1`
 - 作者：zhihaofans
 - 目标：DeepSeek Harness Desktop `0.2.1-rc.2`（macOS）
-- 参考：<https://github.com/saya-ch/dsh-mobile>（本插件只做局域网 + 自定义密码这一条最短路径）
 
 ## 能做什么
 
