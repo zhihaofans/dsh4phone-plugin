@@ -151,19 +151,28 @@ const wrong = await fetch(`${gateway}/__dsh4phone/login`, {
 })
 check('wrong password rejected', wrong.status === 401)
 
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
 const login = await fetch(`${gateway}/__dsh4phone/login`, {
   method: 'POST',
-  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': IPHONE_UA },
   body: 'password=test-password-123&next=%2F',
   redirect: 'manual',
 })
 const setCookies = login.headers.getSetCookie()
 const sessionSetCookie = setCookies.find((cookie) => cookie.startsWith('dsh4phone_session=')) ?? ''
 const markerSetCookie = setCookies.find((cookie) => cookie.startsWith('dsh4phone_gateway=')) ?? ''
+const deviceSetCookie = setCookies.find((cookie) => cookie.startsWith('dsh4phone_device=')) ?? ''
 const sessionCookie = sessionSetCookie.split(';')[0]
 check('correct password issues session', login.status === 303 && sessionCookie.startsWith('dsh4phone_session='))
 check('session cookie is HttpOnly and SameSite', /HttpOnly/i.test(sessionSetCookie) && /SameSite=Lax/i.test(sessionSetCookie))
 check('login marks the gateway surface', markerSetCookie.startsWith(`dsh4phone_gateway=${portB};`), markerSetCookie)
+check('login issues a device identity', deviceSetCookie.startsWith('dsh4phone_device=') && /HttpOnly/i.test(deviceSetCookie), deviceSetCookie)
+
+const afterLogin = await adminCall('/status')
+const devicesAfterLogin = afterLogin.data.status?.devices ?? []
+check('device list records the phone', devicesAfterLogin.length === 1
+  && devicesAfterLogin[0].name === 'iPhone · Safari'
+  && Number.isFinite(Date.parse(devicesAfterLogin[0].lastSeenAt)), JSON.stringify(devicesAfterLogin))
 
 const proxied = await fetch(`${gateway}/`, {
   headers: { cookie: sessionCookie, accept: 'text/html', origin: gateway },
@@ -172,6 +181,8 @@ const proxiedBody = await proxied.text()
 check('proxy reaches upstream', proxied.status === 200 && proxiedBody.includes('cookie=dsh_upstream=ok'))
 check('proxy rewrites Host', proxiedBody.includes(`host=127.0.0.1:${upstreamPort}`), proxiedBody.slice(0, 120))
 check('proxy rewrites Origin', proxiedBody.includes(`origin=http://127.0.0.1:${upstreamPort}`))
+const afterProxy = await adminCall('/status')
+check('proxied requests keep one device record', (afterProxy.data.status?.devices ?? []).length === 1)
 check('proxied response refreshes the gateway marker', proxied.headers.getSetCookie().some((cookie) => cookie.startsWith(`dsh4phone_gateway=${portB};`)))
 
 const redirect = await fetch(`${gateway}/redirect`, { headers: { cookie: sessionCookie }, redirect: 'manual' })
@@ -205,6 +216,9 @@ const wsResult = await new Promise((resolveRequest) => {
   req.end()
 })
 check('websocket upgrade proxied', wsResult.status === 101 && wsResult.data.includes('hello-ws'), JSON.stringify(wsResult))
+
+const logoutAll = await adminCall('/logout-all', {})
+check('logout-all clears the device list', (logoutAll.data.status?.devices ?? []).length === 0)
 
 const remove = await adminCall('/password', { remove: true })
 check('password removal stops gateway', remove.data.status?.running === false && remove.data.status?.hasPassword === false)

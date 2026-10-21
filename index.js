@@ -36,6 +36,11 @@ const ADMIN_PREFIX = '/dsh4phone/api'
 const LOGIN_PATH = '/__dsh4phone/login'
 const LOGOUT_PATH = '/__dsh4phone/logout'
 const SESSION_COOKIE = 'dsh4phone_session'
+const DEVICE_COOKIE = 'dsh4phone_device'
+const DEVICE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60
+const DEVICE_LIMIT = 50
+const DEVICE_TOUCH_MS = 15_000
+const DEVICE_WRITE_DELAY_MS = 30_000
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const COOKIE_REFRESH_MS = 6 * 60 * 60 * 1000
 const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 64, maxmem: 64 * 1024 * 1024 }
@@ -103,7 +108,7 @@ const LOGIN_COPY = {
  */
 export function apply(ctx) {
   const statePath = join(resolveDshHome(), 'dsh4phone', 'state.json')
-  /** @type {{ version: number, enabled: boolean, port: number, password: { salt: string, hash: string, N: number, r: number, p: number, updatedAt: string | null } | null, secret: string | null, updatedAt: string | null }} */
+  /** @type {{ version: number, enabled: boolean, port: number, password: { salt: string, hash: string, N: number, r: number, p: number, updatedAt: string | null } | null, secret: string | null, devices: Array<{ id: string, name: string, createdAt: string, lastSeenAt: string, lastIp?: string }>, updatedAt: string | null }} */
   let state = defaultState()
   let gateway = null
   let starting = null
@@ -113,6 +118,7 @@ export function apply(ctx) {
   let disposed = false
   let queue = Promise.resolve()
   let writes = Promise.resolve()
+  let devicePersistTimer = null
 
   const log = makeLogger(ctx)
 
@@ -153,6 +159,11 @@ export function apply(ctx) {
   ctx.effect(() => () => {
     disposed = true
     clearInterval(refreshTimer)
+    if (devicePersistTimer !== null) {
+      clearTimeout(devicePersistTimer)
+      devicePersistTimer = null
+      void persist()
+    }
     void stopGateway()
   }, 'dsh4phone gateway')
 
@@ -165,6 +176,7 @@ export function apply(ctx) {
       port: DEFAULT_PORT,
       password: null,
       secret: null,
+      devices: [],
       updatedAt: null,
     }
   }
@@ -189,6 +201,9 @@ export function apply(ctx) {
       }
     }
     next.enabled = raw.enabled === true
+    next.devices = Array.isArray(raw.devices)
+      ? raw.devices.map(normalizeDevice).filter((device) => device !== null).slice(-DEVICE_LIMIT)
+      : []
     next.updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : null
     return next
   }
@@ -357,6 +372,7 @@ export function apply(ctx) {
       passwordUpdatedAt: state.password?.updatedAt ?? null,
       upstream: upstreamOrigin,
       error: lastError,
+      devices: devicesView(),
     }
   }
 
@@ -416,6 +432,7 @@ export function apply(ctx) {
       await exclusive(async () => {
         state.password = null
         state.enabled = false
+        state.devices = []
         state.updatedAt = new Date().toISOString()
         await persist()
         await stopGateway()
@@ -441,6 +458,7 @@ export function apply(ctx) {
         updatedAt: new Date().toISOString(),
       }
       state.enabled = true
+      state.devices = []
       state.updatedAt = new Date().toISOString()
       await persist()
       lastError = null
@@ -505,6 +523,7 @@ export function apply(ctx) {
   async function handleLogoutAll(res) {
     await exclusive(async () => {
       state.secret = randomBytes(32).toString('hex')
+      state.devices = []
       state.updatedAt = new Date().toISOString()
       await persist()
     })
@@ -551,12 +570,15 @@ export function apply(ctx) {
     }
 
     clearLoginFailures(address)
+    const device = identifyDevice(req, address)
+    await persist()
     res.writeHead(303, {
       location: next,
       'cache-control': 'no-store',
       'referrer-policy': 'no-referrer',
       'set-cookie': [
-        `${SESSION_COOKIE}=${issueToken()}; Max-Age=${String(Math.floor(SESSION_TTL_MS / 1000))}; Path=/; HttpOnly; SameSite=Lax`,
+        sessionCookie(device.id),
+        deviceCookie(device.id),
         gatewayMarkerCookie(),
       ],
     })
@@ -565,10 +587,19 @@ export function apply(ctx) {
 
   function handleLogout(req, res, url) {
     const next = safeNext(url.searchParams.get('next'))
+    const session = authenticatedSession(req)
+    if (session !== undefined && typeof session.did === 'string') {
+      const before = state.devices.length
+      state.devices = state.devices.filter((device) => device.id !== session.did)
+      if (state.devices.length !== before) void persist()
+    }
     res.writeHead(303, {
       location: next === '/' ? LOGIN_PATH : `${LOGIN_PATH}?next=${encodeURIComponent(next)}`,
       'cache-control': 'no-store',
-      'set-cookie': `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`,
+      'set-cookie': [
+        `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`,
+        `${DEVICE_COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`,
+      ],
     })
     res.end()
   }
@@ -591,37 +622,101 @@ export function apply(ctx) {
     return createHash('sha256').update(state.password.hash).digest('hex').slice(0, 16)
   }
 
-  function issueToken() {
+  function issueToken(deviceId) {
     const payload = Buffer.from(JSON.stringify({
       v: 1,
       exp: Date.now() + SESSION_TTL_MS,
       fp: passwordFingerprint(),
+      ...(typeof deviceId === 'string' ? { did: deviceId } : {}),
     })).toString('base64url')
     const signature = createHmac('sha256', state.secret ?? '').update(payload).digest('base64url')
     return `${payload}.${signature}`
   }
 
-  function verifyToken(token) {
-    if (typeof token !== 'string' || token.length < 8 || token.length > 512) return false
+  function decodeSession(token) {
+    if (typeof token !== 'string' || token.length < 8 || token.length > 512) return undefined
     const dot = token.lastIndexOf('.')
-    if (dot <= 0) return false
+    if (dot <= 0) return undefined
     const payload = token.slice(0, dot)
     const signature = Buffer.from(token.slice(dot + 1), 'base64url')
     const expected = createHmac('sha256', state.secret ?? '').update(payload).digest()
-    if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) return false
+    if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) return undefined
     try {
       const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-      return decoded !== null && typeof decoded === 'object'
-        && decoded.v === 1
-        && typeof decoded.exp === 'number' && decoded.exp > Date.now()
-        && decoded.fp === passwordFingerprint()
+      if (decoded === null || typeof decoded !== 'object') return undefined
+      if (decoded.v !== 1 || typeof decoded.exp !== 'number' || decoded.exp <= Date.now()) return undefined
+      if (decoded.fp !== passwordFingerprint()) return undefined
+      return decoded
     } catch {
-      return false
+      return undefined
     }
   }
 
+  function authenticatedSession(req) {
+    return decodeSession(readCookie(req, SESSION_COOKIE))
+  }
+
   function isAuthenticated(req) {
-    return verifyToken(readCookie(req, SESSION_COOKIE))
+    return authenticatedSession(req) !== undefined
+  }
+
+  function sessionCookie(deviceId) {
+    return `${SESSION_COOKIE}=${issueToken(deviceId)}; Max-Age=${String(Math.floor(SESSION_TTL_MS / 1000))}; Path=/; HttpOnly; SameSite=Lax`
+  }
+
+  function deviceCookie(deviceId) {
+    return `${DEVICE_COOKIE}=${deviceId}; Max-Age=${String(DEVICE_COOKIE_MAX_AGE)}; Path=/; HttpOnly; SameSite=Lax`
+  }
+
+  function identifyDevice(req, address) {
+    const now = new Date().toISOString()
+    const cookieId = readCookie(req, DEVICE_COOKIE)
+    const existing = typeof cookieId === 'string'
+      ? state.devices.find((device) => device.id === cookieId)
+      : undefined
+    if (existing !== undefined) {
+      existing.name = deviceNameFromRequest(req)
+      existing.lastSeenAt = now
+      existing.lastIp = address
+      return existing
+    }
+    const device = {
+      id: randomBytes(12).toString('hex'),
+      name: deviceNameFromRequest(req),
+      createdAt: now,
+      lastSeenAt: now,
+      lastIp: address,
+    }
+    state.devices.push(device)
+    if (state.devices.length > DEVICE_LIMIT) state.devices.splice(0, state.devices.length - DEVICE_LIMIT)
+    return device
+  }
+
+  function touchDevice(session, address) {
+    if (session === undefined || typeof session.did !== 'string') return
+    const device = state.devices.find((entry) => entry.id === session.did)
+    if (device === undefined) return
+    const now = Date.now()
+    const last = Date.parse(device.lastSeenAt)
+    if (Number.isFinite(last) && now - last < DEVICE_TOUCH_MS) return
+    device.lastSeenAt = new Date(now).toISOString()
+    device.lastIp = address
+    scheduleDevicePersist()
+  }
+
+  function scheduleDevicePersist() {
+    if (devicePersistTimer !== null || disposed) return
+    devicePersistTimer = setTimeout(() => {
+      devicePersistTimer = null
+      persist().catch((error) => log.warn(`device state could not be saved: ${describe(error)}`))
+    }, DEVICE_WRITE_DELAY_MS)
+    devicePersistTimer.unref?.()
+  }
+
+  function devicesView() {
+    return [...state.devices]
+      .sort((left, right) => Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt))
+      .map((device) => ({ id: device.id, name: device.name, lastSeenAt: device.lastSeenAt }))
   }
 
   const failures = new Map()
@@ -699,7 +794,8 @@ export function apply(ctx) {
     if (state.password === null) {
       return sendHtml(res, 503, renderMessagePage(requestLocale(req), LOGIN_COPY[requestLocale(req)].noPassword))
     }
-    if (!isAuthenticated(req)) {
+    const session = authenticatedSession(req)
+    if (session === undefined) {
       if (isDocumentRequest(req, pathname)) {
         const next = `${pathname}${url.search}`
         return redirect(res, `${LOGIN_PATH}?next=${encodeURIComponent(next)}`)
@@ -710,10 +806,21 @@ export function apply(ctx) {
       })
       return res.end(JSON.stringify({ error: 'authentication_required' }))
     }
-    proxyHttp(req, res, url)
+    let extraCookies = null
+    if (typeof session.did !== 'string') {
+      // One-time migration for sessions issued before device tracking: mint a
+      // device identity now and hand the phone its device-bound session cookie.
+      const device = identifyDevice(req, address)
+      extraCookies = [sessionCookie(device.id), deviceCookie(device.id)]
+      touchDevice({ ...session, did: device.id }, address)
+      scheduleDevicePersist()
+    } else {
+      touchDevice(session, address)
+    }
+    proxyHttp(req, res, url, 0, extraCookies)
   }
 
-  function proxyHttp(req, res, url, attempt = 0) {
+  function proxyHttp(req, res, url, attempt = 0, extraCookies = null) {
     if (gateway === null) return sendText(res, 503, 'The gateway is stopped.')
     let target
     try {
@@ -735,7 +842,7 @@ export function apply(ctx) {
       if (status === 401 && attempt === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
         upstreamRes.resume()
         refreshUpstreamCookie()
-          .then(() => proxyHttp(req, res, url, 1))
+          .then(() => proxyHttp(req, res, url, 1, extraCookies))
           .catch(() => {
             if (res.headersSent) res.destroy()
             else {
@@ -763,7 +870,10 @@ export function apply(ctx) {
       }
       // This is the gateway serving a phone, not the desktop's loopback page.
       // Existing sessions get the marker on their first proxied response.
-      headers['set-cookie'] = [gatewayMarkerCookie()]
+      headers['set-cookie'] = [
+        ...(Array.isArray(extraCookies) ? extraCookies : []),
+        gatewayMarkerCookie(),
+      ]
       res.writeHead(status, headers)
       upstreamRes.pipe(res)
       upstreamRes.on('error', () => res.destroy())
@@ -822,7 +932,9 @@ export function apply(ctx) {
       || pathname === '/__dsh4phone' || pathname.startsWith('/__dsh4phone/')) {
       return rejectUpgrade(socket, 404)
     }
-    if (state.password === null || !isAuthenticated(req)) return rejectUpgrade(socket, 401)
+    const session = authenticatedSession(req)
+    if (state.password === null || session === undefined) return rejectUpgrade(socket, 401)
+    if (typeof session.did === 'string') touchDevice(session, address)
 
     let target
     try {
@@ -1054,6 +1166,41 @@ function rankInterface(name) {
   if (/^bridge\d/u.test(name)) return 2
   if (/^(utun|awdl|llw|anpi|gif|stf)\d/u.test(name)) return 4
   return 1
+}
+
+function normalizeDevice(raw) {
+  if (raw === null || typeof raw !== 'object') return null
+  if (typeof raw.id !== 'string' || !/^[0-9a-f]{16,64}$/u.test(raw.id)) return null
+  if (typeof raw.name !== 'string' || raw.name.trim() === '' || raw.name.length > 80) return null
+  const createdAt = typeof raw.createdAt === 'string' ? Date.parse(raw.createdAt) : Number.NaN
+  const lastSeenAt = typeof raw.lastSeenAt === 'string' ? Date.parse(raw.lastSeenAt) : Number.NaN
+  if (!Number.isFinite(createdAt) || !Number.isFinite(lastSeenAt)) return null
+  return {
+    id: raw.id,
+    name: raw.name,
+    createdAt: new Date(createdAt).toISOString(),
+    lastSeenAt: new Date(lastSeenAt).toISOString(),
+    lastIp: typeof raw.lastIp === 'string' ? raw.lastIp : undefined,
+  }
+}
+
+function deviceNameFromRequest(req) {
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : ''
+  if (userAgent === '') return 'Unknown device'
+  let device = 'Browser'
+  if (/iPhone/u.test(userAgent)) device = 'iPhone'
+  else if (/iPad/u.test(userAgent)) device = 'iPad'
+  else if (/Android/u.test(userAgent)) device = 'Android'
+  else if (/Macintosh|Mac OS X/u.test(userAgent)) device = 'Mac'
+  else if (/Windows/u.test(userAgent)) device = 'Windows'
+  else if (/Linux/u.test(userAgent)) device = 'Linux'
+  let browser = ''
+  if (/MicroMessenger/u.test(userAgent)) browser = 'WeChat'
+  else if (/EdgiOS|EdgA?\//u.test(userAgent)) browser = 'Edge'
+  else if (/CriOS|Chrome\//u.test(userAgent)) browser = 'Chrome'
+  else if (/FxiOS|Firefox\//u.test(userAgent)) browser = 'Firefox'
+  else if (/Safari\//u.test(userAgent)) browser = 'Safari'
+  return browser === '' ? device : `${device} · ${browser}`
 }
 
 function normalizeAddress(value) {

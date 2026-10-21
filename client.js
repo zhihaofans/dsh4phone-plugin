@@ -74,6 +74,13 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
 .d4p-secondary:disabled{opacity:.45;cursor:default}
 .d4p-danger{color:var(--d4p-error)}
 .d4p-danger:hover{background:color-mix(in srgb,var(--d4p-error) 8%,transparent)}
+.d4p-devices{display:flex;flex-direction:column;margin-top:10px;border:1px solid var(--d4p-border);border-radius:10px;background:var(--d4p-input);max-height:220px;overflow-y:auto}
+.d4p-device{display:flex;align-items:center;gap:10px;padding:9px 11px}
+.d4p-device + .d4p-device{border-top:1px solid var(--d4p-border)}
+.d4p-device-icon{flex:none;color:var(--d4p-muted)}
+.d4p-device-main{display:flex;flex-direction:column;min-width:0;gap:1px}
+.d4p-device-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d4p-device-time{font-size:11px;color:var(--d4p-muted)}
 .d4p-feedback{margin:10px 0 0;padding:8px 10px;border-radius:9px;font-size:12px;line-height:1.5}
 .d4p-feedback.is-ok{background:color-mix(in srgb,var(--d4p-success) 12%,transparent);color:var(--d4p-success)}
 .d4p-feedback.is-error{background:color-mix(in srgb,var(--d4p-error) 12%,transparent);color:var(--d4p-error)}
@@ -125,6 +132,13 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       'signout.button': 'Sign out all phones',
       'signout.confirm': 'Sign out every phone that is currently connected?',
       'signout.done': 'All phones were signed out.',
+      'devices.empty': 'No phone has connected yet.',
+      'devices.lastSeen': 'Last connected {time}',
+      'devices.justNow': 'just now',
+      'devices.minutesAgo': '{count} min ago',
+      'devices.hoursAgo': '{count} h ago',
+      'devices.daysAgo': '{count} d ago',
+      'devices.unknown': 'unknown',
       'security.note': 'Private networks only. The LAN connection is plain HTTP, so enable this only on a trusted network and never forward this port from your router.',
       'error.password_required': 'Set a password first.',
       'error.password_invalid': 'Use a password between 4 and 128 characters.',
@@ -185,6 +199,13 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       'signout.button': '让所有手机退出',
       'signout.confirm': '让当前所有已连接的手机退出登录？',
       'signout.done': '所有手机已退出登录。',
+      'devices.empty': '还没有手机连接过。',
+      'devices.lastSeen': '最后连接：{time}',
+      'devices.justNow': '刚刚',
+      'devices.minutesAgo': '{count} 分钟前',
+      'devices.hoursAgo': '{count} 小时前',
+      'devices.daysAgo': '{count} 天前',
+      'devices.unknown': '未知',
       'security.note': '仅限私有局域网。局域网内使用明文 HTTP，请只在可信网络开启，也不要在路由器上把这个端口转发到公网。',
       'error.password_required': '请先设置密码。',
       'error.password_invalid': '密码长度需要在 4 到 128 个字符之间。',
@@ -215,6 +236,19 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       strokeLinecap: 'round',
       strokeLinejoin: 'round',
     }, h('rect', { x: 4, y: 1, width: 8, height: 14, rx: 2 }), h('path', { d: 'M7 12h2' }))
+
+    const DEVICE_ICON = h('svg', {
+      'aria-hidden': true,
+      className: 'd4p-device-icon',
+      width: 15,
+      height: 15,
+      viewBox: '0 0 16 16',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.4,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    }, h('rect', { x: 4, y: 1.2, width: 8, height: 13.6, rx: 2 }), h('path', { d: 'M7 12.2h2' }))
 
     const QR_ICON = h('svg', {
       'aria-hidden': true,
@@ -303,6 +337,21 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
         }
       }
       return path
+    }
+
+    /** Relative "last connected" text for one device record. */
+    function lastSeenLabel(t, iso) {
+      const time = Date.parse(iso)
+      if (!Number.isFinite(time)) return t('devices.unknown')
+      const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000))
+      if (seconds < 60) return t('devices.justNow')
+      const minutes = Math.floor(seconds / 60)
+      if (minutes < 60) return t('devices.minutesAgo', { count: minutes })
+      const hours = Math.floor(minutes / 60)
+      if (hours < 24) return t('devices.hoursAgo', { count: hours })
+      const days = Math.floor(hours / 24)
+      if (days < 30) return t('devices.daysAgo', { count: days })
+      return new Date(time).toLocaleDateString()
     }
 
     return {
@@ -537,6 +586,7 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
             : status === null ? t('status.loading') : running ? t('status.running') : t('status.stopped')
 
           const urls = running && Array.isArray(status?.urls) ? status.urls : []
+          const devices = status !== null && Array.isArray(status.devices) ? status.devices : []
 
           return h('div', {
             className: 'd4p-backdrop',
@@ -708,6 +758,16 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
 
             h('section', { className: 'd4p-section' },
               h('h3', { className: 'd4p-section-title' }, t('signout.title')),
+              devices.length === 0
+                ? h('p', { className: 'd4p-muted' }, t('devices.empty'))
+                : h('div', { className: 'd4p-devices' }, devices.map((device) => h('div', { className: 'd4p-device', key: device.id },
+                  DEVICE_ICON,
+                  h('div', { className: 'd4p-device-main' },
+                    h('span', { className: 'd4p-device-name' }, device.name),
+                    h('span', {
+                      className: 'd4p-device-time',
+                      title: Number.isFinite(Date.parse(device.lastSeenAt)) ? new Date(device.lastSeenAt).toLocaleString() : undefined,
+                    }, t('devices.lastSeen', { time: lastSeenLabel(t, device.lastSeenAt) })))))),
               h('p', { className: 'd4p-muted' }, t('signout.hint')),
               h('div', { className: 'd4p-actions' },
                 h('button', {
