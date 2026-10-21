@@ -1,0 +1,41 @@
+{
+  "name": "dsh4phone",
+  "version": "0.0.1",
+  "description": "Open this DeepSeek Harness from a phone on the same local network, protected by your own password.",
+  "author": "zhihaofans",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check index.js && node --check client.js",
+    "test": "node test/host.test.mjs && node test/client.test.mjs"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}
