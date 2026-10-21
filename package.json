@@ -1,6 +1,6 @@
 {
   "name": "dsh4phone",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Open this DeepSeek Harness from a phone on the same local network, protected by your own password.",
   "author": "zhihaofans",
   "license": "MIT",

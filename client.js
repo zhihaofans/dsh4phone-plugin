@@ -90,6 +90,50 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
 @media (max-width:560px){.d4p-backdrop{padding:0;align-items:flex-end}.d4p-dialog{max-height:92vh;border-radius:18px 18px 0 0}}
 `
 
+    const MOBILE_STYLE = `
+html[data-d4p-mobile],html[data-d4p-mobile] body{height:100%;overflow:hidden;overscroll-behavior:none}
+html[data-d4p-mobile] body{height:var(--d4p-vv-height,100dvh);background:var(--dsw-alias-bg-base)}
+html[data-d4p-mobile] #root{height:100%}
+html[data-d4p-mobile] [data-d4p-frame]{height:100%!important;grid-template-columns:0 minmax(0,1fr) 0!important;grid-template-rows:minmax(0,1fr) auto!important;padding-top:0!important;--dsh-frame-leading-clearance:0px!important;--dsh-frame-top-clearance:0px!important;--dsh-frame-chrome-top:0px!important}
+html[data-d4p-mobile] [data-d4p-frame]>[data-shell-leading],
+html[data-d4p-mobile] [data-d4p-frame]>[class*="_handle"]{display:none!important}
+html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar]{position:fixed!important;top:0;bottom:0;left:0;z-index:950;display:flex;flex-direction:column;width:min(86vw,340px);max-width:100%;height:100%;box-sizing:border-box;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);background:var(--dsw-specific-sidebar-fill,var(--dsw-alias-bg-base));border-right:1px solid var(--dsw-alias-border-l1);box-shadow:0 0 44px rgba(0,0,0,.38);overflow:hidden;visibility:hidden;transform:translateX(-103%);transition:transform .2s var(--ds-ease-in-out,ease),visibility .2s}
+html[data-d4p-mobile][data-d4p-drawer="open"] [data-d4p-frame]>[data-d4p-sidebar]{visibility:visible;transform:none}
+html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar]>*{flex:1 1 auto;min-height:0}
+html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar] [class*="_topStrip"]{display:none!important}
+html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar] [class*="_logoRow"]{height:44px;margin-bottom:4px}
+html[data-d4p-mobile] [data-d4p-center]{grid-column:2;min-width:0;box-sizing:border-box;padding-top:calc(52px + env(safe-area-inset-top));border-left:0!important}
+html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed]){grid-template-columns:0 0 minmax(0,1fr)!important}
+html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-center]{display:none!important}
+html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-rightbar]{grid-column:3;width:100%;min-width:0;height:100%;box-sizing:border-box;padding-top:calc(52px + env(safe-area-inset-top));overflow:hidden}
+html[data-d4p-mobile] [data-d4p-mobile-layer]{position:fixed;inset:0;z-index:900;pointer-events:none}
+html[data-d4p-mobile] .d4p-mobile-scrim{position:absolute;inset:0;background:rgba(0,0,0,.46);opacity:0;pointer-events:none;transition:opacity .18s}
+html[data-d4p-mobile][data-d4p-drawer="open"] .d4p-mobile-scrim{opacity:1;pointer-events:auto}
+html[data-d4p-mobile] .d4p-mobile-menu{position:fixed;top:calc(env(safe-area-inset-top) + 7px);left:8px;z-index:1;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 88%,transparent);color:var(--dsw-alias-label-primary);box-shadow:0 2px 12px rgba(0,0,0,.16);backdrop-filter:blur(12px);cursor:pointer;pointer-events:auto}
+html[data-d4p-mobile] .d4p-mobile-menu:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,currentColor);outline-offset:2px}
+html[data-d4p-mobile][data-d4p-drawer="open"] .d4p-mobile-menu{display:none}
+html[data-d4p-mobile] .d4p-mobile-icon-back{display:none}
+html[data-d4p-mobile][data-d4p-rightbar="open"] .d4p-mobile-icon-menu{display:none}
+html[data-d4p-mobile][data-d4p-rightbar="open"] .d4p-mobile-icon-back{display:block}
+html[data-d4p-mobile] [data-d4p-composer]{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)!important}
+html[data-d4p-mobile] [data-d4p-center] [class*="_composerSeat"]{padding-bottom:calc(env(safe-area-inset-bottom) + 8px)!important}
+html[data-d4p-mobile] [data-d4p-center] [class*="_composerSeat"] button{min-width:32px;min-height:32px;touch-action:manipulation}
+html[data-d4p-mobile] [data-d4p-center] textarea,
+html[data-d4p-mobile] [data-d4p-center] [contenteditable="true"]{font-size:16px!important;line-height:24px!important}
+html[data-d4p-mobile] [data-d4p-composer] button{min-width:32px;min-height:32px;touch-action:manipulation}
+html[data-d4p-mobile] [data-d4p-center] pre,
+html[data-d4p-mobile] [data-d4p-center] .md-table-wide{max-width:100%;overflow-x:auto}
+html[data-d4p-mobile] [data-d4p-center] img{max-width:100%;height:auto}
+html[data-d4p-mobile] [role="dialog"],
+html[data-d4p-mobile] [aria-modal="true"]{max-width:calc(100vw - 24px)!important;max-height:calc(100dvh - 32px)!important}
+html[data-d4p-mobile] [role="menu"],
+html[data-d4p-mobile] [role="listbox"]{max-width:calc(100vw - 16px)!important}
+html[data-d4p-mobile] button,
+html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
+`
+
+    const MOBILE_MENU_ICON = '<svg class="d4p-mobile-icon-menu" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 5h10M3 8h10M3 11h10"/></svg><svg class="d4p-mobile-icon-back" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3.5 5 8l4.5 4.5"/></svg>'
+
     const EN = {
       title: 'Phone Access',
       close: 'Close',
@@ -139,6 +183,8 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       'devices.hoursAgo': '{count} h ago',
       'devices.daysAgo': '{count} d ago',
       'devices.unknown': 'unknown',
+      'mobile.menu': 'Open sidebar',
+      'mobile.back': 'Back to chat',
       'security.note': 'Private networks only. The LAN connection is plain HTTP, so enable this only on a trusted network and never forward this port from your router.',
       'error.password_required': 'Set a password first.',
       'error.password_invalid': 'Use a password between 4 and 128 characters.',
@@ -206,6 +252,8 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       'devices.hoursAgo': '{count} 小时前',
       'devices.daysAgo': '{count} 天前',
       'devices.unknown': '未知',
+      'mobile.menu': '打开侧栏',
+      'mobile.back': '返回对话',
       'security.note': '仅限私有局域网。局域网内使用明文 HTTP，请只在可信网络开启，也不要在路由器上把这个端口转发到公网。',
       'error.password_required': '请先设置密码。',
       'error.password_invalid': '密码长度需要在 4 到 128 个字符之间。',
@@ -352,6 +400,287 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
       const days = Math.floor(hours / 24)
       if (days < 30) return t('devices.daysAgo', { count: days })
       return new Date(time).toLocaleDateString()
+    }
+
+    const MOBILE_QUERY = '(max-width: 640px), (max-height: 520px)'
+
+    /**
+     * Keep a phone-sized gateway page in a drawer/full-width layout. The layer
+     * is media-driven: rotation or a desktop-sized window removes it and the
+     * stock DSH layout returns. A missing shell/layout service is fail-open.
+     */
+    function installMobileLayout(ctx) {
+      if (typeof window.matchMedia !== 'function') return () => {}
+      const media = window.matchMedia(MOBILE_QUERY)
+      let cleanup = null
+      const sync = () => {
+        if (media.matches) {
+          if (cleanup === null) {
+            try {
+              cleanup = activateMobileLayout(ctx)
+            } catch (error) {
+              console.error('[dsh4phone] mobile layout disabled', error)
+              cleanup = () => {}
+            }
+          }
+          return
+        }
+        if (cleanup !== null) {
+          const dispose = cleanup
+          cleanup = null
+          dispose()
+        }
+      }
+      const onChange = () => sync()
+      if (typeof media.addEventListener === 'function') media.addEventListener('change', onChange)
+      else if (typeof media.addListener === 'function') media.addListener(onChange)
+      sync()
+      return () => {
+        if (typeof media.removeEventListener === 'function') media.removeEventListener('change', onChange)
+        else if (typeof media.removeListener === 'function') media.removeListener(onChange)
+        if (cleanup !== null) {
+          const dispose = cleanup
+          cleanup = null
+          dispose()
+        }
+      }
+    }
+
+    function activateMobileLayout(ctx) {
+      // The layout service can arrive after this plugin; resolve it at action
+      // time so the mobile shell still mounts (the menu no-ops until the
+      // service exists, then works without a reload).
+      const layoutService = () => {
+        const value = typeof ctx.get === 'function' ? ctx.get('layout') : undefined
+        return value !== undefined && value !== null && typeof value.toggleSidebar === 'function' ? value : undefined
+      }
+      if (typeof document === 'undefined' || document.documentElement === undefined) return () => {}
+      const root = document.documentElement
+      if (root === undefined || root === null || root.dataset === undefined) return () => {}
+      const t = typeof ctx.locale?.bind === 'function' ? ctx.locale.bind('dsh4phone') : (key) => key
+
+      let installed = false
+      let mountObserver = null
+      let drawerObserver = null
+      let style = null
+      let layer = null
+      let menu = null
+      let scrim = null
+      let frame = null
+      let sidebar = null
+      let center = null
+      let rightbar = null
+      let composer = null
+      let meta = null
+      let previousMeta = null
+      let unsubscribeLocale = null
+
+      const findFrame = () => {
+        const overlay = document.querySelector('[data-shell-overlay]')
+        return overlay === null || overlay === undefined ? null : overlay.parentElement
+      }
+
+      const syncLabels = () => {
+        if (menu === null || frame === null) return
+        const back = !frame.hasAttribute('data-rightbar-collapsed')
+        const label = back ? t('mobile.back') : t('mobile.menu')
+        menu.setAttribute('aria-label', label)
+        menu.setAttribute('title', label)
+      }
+
+      const syncState = () => {
+        if (frame === null) return
+        const drawerOpen = !frame.hasAttribute('data-sidebar-collapsed')
+        const rightbarOpen = !frame.hasAttribute('data-rightbar-collapsed')
+        root.dataset.d4pDrawer = drawerOpen ? 'open' : 'closed'
+        root.dataset.d4pRightbar = rightbarOpen ? 'open' : 'closed'
+        if (menu !== null) menu.setAttribute('aria-expanded', String(drawerOpen))
+        syncLabels()
+      }
+
+      const onMenuClick = () => {
+        if (frame === null) return
+        const layout = layoutService()
+        if (layout === undefined) return
+        if (!frame.hasAttribute('data-rightbar-collapsed')) {
+          if (typeof layout.closeRightbar === 'function') layout.closeRightbar()
+          return
+        }
+        layout.toggleSidebar()
+        window.setTimeout(() => {
+          if (frame !== null && !frame.hasAttribute('data-sidebar-collapsed') && sidebar !== null) {
+            const target = sidebar.querySelector('button, [href], [tabindex]')
+            if (target !== null && target !== undefined && typeof target.focus === 'function') target.focus()
+          }
+        }, 80)
+      }
+
+      const onScrimClick = () => {
+        const layout = layoutService()
+        if (layout !== undefined && frame !== null && !frame.hasAttribute('data-sidebar-collapsed')) layout.toggleSidebar()
+        if (menu !== null) menu.focus()
+      }
+
+      const onKeyDown = (event) => {
+        if (event.key !== 'Escape' || frame === null) return
+        const layout = layoutService()
+        if (layout === undefined) return
+        if (!frame.hasAttribute('data-sidebar-collapsed')) {
+          layout.toggleSidebar()
+          if (menu !== null) menu.focus()
+          return
+        }
+        if (!frame.hasAttribute('data-rightbar-collapsed') && typeof layout.closeRightbar === 'function') {
+          layout.closeRightbar()
+        }
+      }
+
+      const onFocusIn = (event) => {
+        const target = event.target
+        if (target === null || target === undefined || typeof target.closest !== 'function') return
+        if (target.closest('[data-d4p-composer]') === null) return
+        window.setTimeout(() => {
+          if (composer !== null && typeof composer.scrollIntoView === 'function') {
+            composer.scrollIntoView({ block: 'nearest' })
+          }
+        }, 260)
+      }
+
+      const updateViewport = () => {
+        const height = window.visualViewport?.height ?? window.innerHeight
+        if (Number.isFinite(height)) root.style.setProperty('--d4p-vv-height', `${Math.round(height)}px`)
+      }
+
+      const decorate = () => {
+        if (installed) return true
+        const candidate = findFrame()
+        if (candidate === null || candidate.children === undefined || candidate.children.length < 2) return false
+        const sidebarCandidate = candidate.children[0]
+        const centerCandidate = candidate.children[1]
+        if (sidebarCandidate === undefined || centerCandidate === undefined) return false
+        if (sidebarCandidate.nodeType !== 1 || centerCandidate.nodeType !== 1) return false
+        if (typeof document.createElement !== 'function' || document.head === undefined || document.body === undefined) return false
+        frame = candidate
+        sidebar = sidebarCandidate
+        center = centerCandidate
+        rightbar = candidate.children[2] !== undefined && candidate.children[2].nodeType === 1 ? candidate.children[2] : null
+        installed = true
+        root.dataset.d4pMobile = 'true'
+        root.dataset.d4pDrawer = 'closed'
+        root.dataset.d4pRightbar = 'closed'
+        frame.setAttribute('data-d4p-frame', '')
+        sidebar.setAttribute('data-d4p-sidebar', '')
+        sidebar.id = 'd4p-mobile-drawer'
+        center.setAttribute('data-d4p-center', '')
+        if (rightbar !== null) rightbar.setAttribute('data-d4p-rightbar', '')
+        const editor = center.querySelector('[contenteditable="true"], textarea')
+        if (editor !== null) {
+          composer = editor.closest('[class*="_composerSeat"]') ?? editor.parentElement
+          if (composer !== null) composer.setAttribute('data-d4p-composer', '')
+        }
+        meta = document.querySelector('meta[name="viewport"]')
+        previousMeta = meta === null ? null : meta.getAttribute('content')
+        if (meta !== null) meta.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover')
+        style = document.createElement('style')
+        style.setAttribute('data-d4p-mobile-style', '')
+        style.textContent = MOBILE_STYLE
+        document.head.append(style)
+        layer = document.createElement('div')
+        layer.setAttribute('data-d4p-mobile-layer', '')
+        menu = document.createElement('button')
+        menu.type = 'button'
+        menu.className = 'd4p-mobile-menu'
+        menu.setAttribute('aria-controls', 'd4p-mobile-drawer')
+        menu.innerHTML = MOBILE_MENU_ICON
+        scrim = document.createElement('div')
+        scrim.className = 'd4p-mobile-scrim'
+        scrim.setAttribute('aria-hidden', 'true')
+        layer.append(menu, scrim)
+        document.body.append(layer)
+        menu.addEventListener('click', onMenuClick)
+        scrim.addEventListener('click', onScrimClick)
+        document.addEventListener('keydown', onKeyDown)
+        document.addEventListener('focusin', onFocusIn)
+        if (typeof MutationObserver === 'function') {
+          drawerObserver = new MutationObserver(syncState)
+          drawerObserver.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed', 'data-rightbar-collapsed'] })
+        }
+        syncState()
+        updateViewport()
+        if (typeof window.addEventListener === 'function') window.addEventListener('resize', updateViewport)
+        window.visualViewport?.addEventListener?.('resize', updateViewport)
+        window.visualViewport?.addEventListener?.('scroll', updateViewport)
+        if (typeof ctx.locale?.subscribe === 'function') unsubscribeLocale = ctx.locale.subscribe(syncLabels)
+        return true
+      }
+
+      const cleanup = () => {
+        if (mountObserver !== null) { mountObserver.disconnect(); mountObserver = null }
+        if (drawerObserver !== null) { drawerObserver.disconnect(); drawerObserver = null }
+        if (unsubscribeLocale !== null) { unsubscribeLocale(); unsubscribeLocale = null }
+        if (typeof document.removeEventListener === 'function') {
+          document.removeEventListener('keydown', onKeyDown)
+          document.removeEventListener('focusin', onFocusIn)
+        }
+        if (typeof window.removeEventListener === 'function') window.removeEventListener('resize', updateViewport)
+        window.visualViewport?.removeEventListener?.('resize', updateViewport)
+        window.visualViewport?.removeEventListener?.('scroll', updateViewport)
+        if (menu !== null) menu.removeEventListener('click', onMenuClick)
+        if (scrim !== null) scrim.removeEventListener('click', onScrimClick)
+        if (layer !== null) layer.remove()
+        if (style !== null) style.remove()
+        if (frame !== null) {
+          frame.removeAttribute('data-d4p-frame')
+          if (sidebar !== null) {
+            sidebar.removeAttribute('data-d4p-sidebar')
+            if (sidebar.id === 'd4p-mobile-drawer') sidebar.removeAttribute('id')
+          }
+          if (center !== null) center.removeAttribute('data-d4p-center')
+          if (rightbar !== null) rightbar.removeAttribute('data-d4p-rightbar')
+          if (composer !== null) composer.removeAttribute('data-d4p-composer')
+        }
+        if (installed) {
+          delete root.dataset.d4pMobile
+          delete root.dataset.d4pDrawer
+          delete root.dataset.d4pRightbar
+          root.style.removeProperty('--d4p-vv-height')
+          if (meta !== null && previousMeta !== null) meta.setAttribute('content', previousMeta)
+        }
+        frame = null
+        sidebar = null
+        center = null
+        rightbar = null
+        composer = null
+        menu = null
+        scrim = null
+        layer = null
+        style = null
+        meta = null
+        installed = false
+      }
+
+      const tryDecorate = () => {
+        try {
+          return decorate()
+        } catch (error) {
+          cleanup()
+          throw error
+        }
+      }
+
+      if (!tryDecorate() && typeof MutationObserver === 'function') {
+        mountObserver = new MutationObserver(() => {
+          try {
+            if (!tryDecorate()) return
+            if (mountObserver !== null) { mountObserver.disconnect(); mountObserver = null }
+          } catch (error) {
+            console.error('[dsh4phone] mobile layout mount failed', error)
+            if (mountObserver !== null) { mountObserver.disconnect(); mountObserver = null }
+          }
+        })
+        mountObserver.observe(root, { childList: true, subtree: true })
+      }
+      return cleanup
     }
 
     return {
@@ -780,7 +1109,19 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
           h('p', { className: 'd4p-foot' }, t('security.note'))))
         }
 
-        if (isPhoneGatewaySurface()) return
+        // Dictionaries exist before either surface: the phone menu and the
+        // desktop panel both translate through this namespace.
+        ctx.effect(() => {
+          try {
+            return ctx.locale.register('dsh4phone', { en: EN, zh: ZH })
+          } catch {
+            return () => {}
+          }
+        }, 'dsh4phone dictionaries')
+        if (isPhoneGatewaySurface()) {
+          ctx.effect(() => installMobileLayout(ctx), 'dsh4phone mobile layout')
+          return
+        }
         ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
           name: 'sidebar.footer.action',
           id: 'dsh4phone',
@@ -791,15 +1132,6 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
           id: 'dsh4phone-panel',
           order: 200,
         }, PhonePanel))
-        // A live reload can leave the previous generation's namespace behind;
-        // an already-registered namespace must not stop the entry from mounting.
-        ctx.effect(() => {
-          try {
-            return ctx.locale.register('dsh4phone', { en: EN, zh: ZH })
-          } catch {
-            return () => {}
-          }
-        }, 'dsh4phone dictionaries')
       },
     }
   },
