@@ -145,10 +145,13 @@ const login = await fetch(`${gateway}/__dsh4phone/login`, {
   body: 'password=test-password-123&next=%2F',
   redirect: 'manual',
 })
-const setCookie = login.headers.get('set-cookie') ?? ''
-const sessionCookie = setCookie.split(';')[0]
+const setCookies = login.headers.getSetCookie()
+const sessionSetCookie = setCookies.find((cookie) => cookie.startsWith('dsh4phone_session=')) ?? ''
+const markerSetCookie = setCookies.find((cookie) => cookie.startsWith('dsh4phone_gateway=')) ?? ''
+const sessionCookie = sessionSetCookie.split(';')[0]
 check('correct password issues session', login.status === 303 && sessionCookie.startsWith('dsh4phone_session='))
-check('session cookie is HttpOnly and SameSite', /HttpOnly/i.test(setCookie) && /SameSite=Lax/i.test(setCookie))
+check('session cookie is HttpOnly and SameSite', /HttpOnly/i.test(sessionSetCookie) && /SameSite=Lax/i.test(sessionSetCookie))
+check('login marks the gateway surface', markerSetCookie.startsWith(`dsh4phone_gateway=${portB};`), markerSetCookie)
 
 const proxied = await fetch(`${gateway}/`, {
   headers: { cookie: sessionCookie, accept: 'text/html', origin: gateway },
@@ -157,6 +160,7 @@ const proxiedBody = await proxied.text()
 check('proxy reaches upstream', proxied.status === 200 && proxiedBody.includes('cookie=dsh_upstream=ok'))
 check('proxy rewrites Host', proxiedBody.includes(`host=127.0.0.1:${upstreamPort}`), proxiedBody.slice(0, 120))
 check('proxy rewrites Origin', proxiedBody.includes(`origin=http://127.0.0.1:${upstreamPort}`))
+check('proxied response refreshes the gateway marker', proxied.headers.getSetCookie().some((cookie) => cookie.startsWith(`dsh4phone_gateway=${portB};`)))
 
 const redirect = await fetch(`${gateway}/redirect`, { headers: { cookie: sessionCookie }, redirect: 'manual' })
 check('upstream redirect rewritten to relative', redirect.status === 302 && redirect.headers.get('location') === '/target', redirect.headers.get('location') ?? '')

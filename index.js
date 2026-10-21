@@ -361,6 +361,17 @@ export function apply(ctx) {
 
   // ------------------------------------------------------------- endpoints --
 
+  /**
+   * Non-secret marker read by the Client half. Its value is the gateway port,
+   * so the desktop page on the same host (a different port) ignores a marker
+   * minted by the gateway while the gateway page itself hides its panel.
+   */
+  function gatewayMarkerCookie() {
+    const address = gateway?.server.address()
+    const port = address !== null && typeof address === 'object' ? address.port : state.port
+    return `dsh4phone_gateway=${String(port)}; Path=/; SameSite=Lax`
+  }
+
   async function handleAdmin(req, res) {
     if (!adminRequestAllowed(req, res)) return
     const url = new URL(req.url ?? '/', 'http://admin.invalid')
@@ -532,7 +543,10 @@ export function apply(ctx) {
       location: next,
       'cache-control': 'no-store',
       'referrer-policy': 'no-referrer',
-      'set-cookie': `${SESSION_COOKIE}=${issueToken()}; Max-Age=${String(Math.floor(SESSION_TTL_MS / 1000))}; Path=/; HttpOnly; SameSite=Lax`,
+      'set-cookie': [
+        `${SESSION_COOKIE}=${issueToken()}; Max-Age=${String(Math.floor(SESSION_TTL_MS / 1000))}; Path=/; HttpOnly; SameSite=Lax`,
+        gatewayMarkerCookie(),
+      ],
     })
     res.end()
   }
@@ -735,6 +749,9 @@ export function apply(ctx) {
         }
         headers[key] = value
       }
+      // This is the gateway serving a phone, not the desktop's loopback page.
+      // Existing sessions get the marker on their first proxied response.
+      headers['set-cookie'] = [gatewayMarkerCookie()]
       res.writeHead(status, headers)
       upstreamRes.pipe(res)
       upstreamRes.on('error', () => res.destroy())

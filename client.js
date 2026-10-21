@@ -231,13 +231,18 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The control panel administers this computer, so it exists only on the
-     * loopback surface. A phone that opened the gateway page must not see a
-     * panel whose requests the gateway blocks.
+     * Hide the control panel only on the phone gateway. The gateway sets a
+     * non-secret `dsh4phone_gateway=<port>` cookie on everything it serves;
+     * matching the page's own port distinguishes the gateway page from the
+     * desktop page on the same host. Without a matching marker the panel is
+     * always mounted, so the desktop app's own host or protocol never hides
+     * it. The gateway never exposes the admin API, so a hidden panel there is
+     * the only correct state.
      */
-    function isDesktopSurface() {
-      const host = window.location.hostname
-      return host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === '::1'
+    function isPhoneGatewaySurface() {
+      if (typeof document === 'undefined' || typeof document.cookie !== 'string') return false
+      const marker = `dsh4phone_gateway=${window.location.port}`
+      return document.cookie.split(';').some((part) => part.trim() === marker)
     }
 
     return {
@@ -581,8 +586,7 @@ window.__ModuleLoader__.load({
           h('p', { className: 'd4p-foot' }, t('security.note'))))
         }
 
-        ctx.effect(() => ctx.locale.register('dsh4phone', { en: EN, zh: ZH }), 'dsh4phone dictionaries')
-        if (!isDesktopSurface()) return
+        if (isPhoneGatewaySurface()) return
         ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
           name: 'sidebar.footer.action',
           id: 'dsh4phone',
@@ -593,6 +597,15 @@ window.__ModuleLoader__.load({
           id: 'dsh4phone-panel',
           order: 200,
         }, PhonePanel))
+        // A live reload can leave the previous generation's namespace behind;
+        // an already-registered namespace must not stop the entry from mounting.
+        ctx.effect(() => {
+          try {
+            return ctx.locale.register('dsh4phone', { en: EN, zh: ZH })
+          } catch {
+            return () => {}
+          }
+        }, 'dsh4phone dictionaries')
       },
     }
   },
