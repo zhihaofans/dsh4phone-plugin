@@ -72,6 +72,8 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
 .d4p-secondary{min-height:34px;padding:6px 12px;border:1px solid var(--d4p-border);border-radius:9px;background:transparent;color:var(--d4p-text);font:13px/1.2 inherit;cursor:pointer}
 .d4p-secondary:hover{background:var(--d4p-hover)}
 .d4p-secondary:disabled{opacity:.45;cursor:default}
+.d4p-danger{color:var(--d4p-error)}
+.d4p-danger:hover{background:color-mix(in srgb,var(--d4p-error) 8%,transparent)}
 .d4p-feedback{margin:10px 0 0;padding:8px 10px;border-radius:9px;font-size:12px;line-height:1.5}
 .d4p-feedback.is-ok{background:color-mix(in srgb,var(--d4p-success) 12%,transparent);color:var(--d4p-success)}
 .d4p-feedback.is-error{background:color-mix(in srgb,var(--d4p-error) 12%,transparent);color:var(--d4p-error)}
@@ -674,7 +676,7 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
                 hasPassword
                   ? h('button', {
                     type: 'button',
-                    className: 'd4p-secondary',
+                    className: 'd4p-secondary d4p-danger',
                     disabled: busy,
                     onClick: removePassword,
                   }, t('password.clear'))
@@ -710,7 +712,7 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
               h('div', { className: 'd4p-actions' },
                 h('button', {
                   type: 'button',
-                  className: 'd4p-secondary',
+                  className: 'd4p-secondary d4p-danger',
                   disabled: busy || status === null,
                   onClick: signOutAll,
                 }, t('signout.button'))))),
