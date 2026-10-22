@@ -109,6 +109,20 @@ html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerUtili
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerActions"]{position:absolute!important;right:12px;bottom:2px;z-index:2;display:flex;max-width:calc(100% - 150px);overflow:hidden}
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerActions"]>div>:not(:last-child){display:none!important}
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_tabs"]{gap:20px!important}
+html[data-d4p-mobile] .Dws9Sa_overlay{align-items:stretch;justify-content:stretch}
+html[data-d4p-mobile] .Dws9Sa_panel{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border-radius:0;flex-direction:column;background:var(--dsw-alias-bg-base)}
+html[data-d4p-mobile] .Dws9Sa_nav{width:100%;padding:calc(env(safe-area-inset-top) + 10px) 12px 0;gap:8px}
+html[data-d4p-mobile] .Dws9Sa_navTitle{padding:0 4px;font-size:18px;line-height:28px;min-height:36px;display:flex;align-items:center}
+html[data-d4p-mobile] .Dws9Sa_navList{flex-direction:row;gap:6px;overflow-x:auto;overflow-y:hidden;padding-bottom:8px;scrollbar-width:none}
+html[data-d4p-mobile] .Dws9Sa_navList::-webkit-scrollbar{display:none}
+html[data-d4p-mobile] .Dws9Sa_navCell{flex:none;height:36px;padding:6px 12px;white-space:nowrap}
+html[data-d4p-mobile] .Dws9Sa_navIcon{display:none}
+html[data-d4p-mobile] .Dws9Sa_navLabel{flex:none;overflow:visible}
+html[data-d4p-mobile] .Dws9Sa_content{flex:1;min-height:0}
+html[data-d4p-mobile] .Dws9Sa_header{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:8px;height:36px;padding:0;z-index:3;align-items:center}
+html[data-d4p-mobile] .Dws9Sa_actions{gap:6px}
+html[data-d4p-mobile] .Dws9Sa_close{width:32px;height:32px}
+html[data-d4p-mobile] .Dws9Sa_options{padding:0 14px calc(env(safe-area-inset-bottom) + 20px)}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed]){grid-template-columns:0 0 minmax(0,1fr)!important}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-center]{display:none!important}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-rightbar]{grid-column:3;width:100%;min-width:0;height:100%;box-sizing:border-box;padding-top:calc(52px + env(safe-area-inset-top));overflow:hidden}
@@ -468,6 +482,8 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
       let installed = false
       let mountObserver = null
       let drawerObserver = null
+      let settingsObserver = null
+      let settingsModal = null
       let style = null
       let layer = null
       let menu = null
@@ -525,6 +541,33 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         const layout = layoutService()
         if (layout !== undefined && frame !== null && !frame.hasAttribute('data-sidebar-collapsed')) layout.toggleSidebar()
         if (menu !== null) menu.focus()
+      }
+
+      const fitSettingsPanel = () => {
+        const modal = document.querySelector('[data-shortcut-modal="settings"]')
+        if (modal === null) return false
+        settingsModal = modal
+        modal.style.setProperty('width', '100vw', 'important')
+        modal.style.setProperty('max-width', '100vw', 'important')
+        modal.style.setProperty('min-width', '100vw', 'important')
+        modal.style.setProperty('height', '100dvh', 'important')
+        modal.style.setProperty('max-height', '100dvh', 'important')
+        modal.style.setProperty('min-height', '100dvh', 'important')
+        modal.style.setProperty('flex', 'none', 'important')
+        modal.style.setProperty('margin', '0', 'important')
+        return true
+      }
+
+      const onSidebarClick = (event) => {
+        const target = event.target
+        if (target === null || target === undefined || typeof target.closest !== 'function') return
+        if (frame === null || frame.hasAttribute('data-sidebar-collapsed')) return
+        // Menus opened from row action icons should stay inside the drawer.
+        if (target.closest('[class*="_iconButton"]') !== null && target.closest('[aria-label*="新建会话"]') === null) return
+        const item = target.closest('[data-row-key^="session:"], [class*="_panelRow"], [class*="_newSession"], [aria-label*="新建会话"]')
+        if (item === null) return
+        const layout = layoutService()
+        if (layout !== undefined) layout.toggleSidebar()
       }
 
       const onKeyDown = (event) => {
@@ -605,11 +648,23 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         document.body.append(layer)
         menu.addEventListener('click', onMenuClick)
         scrim.addEventListener('click', onScrimClick)
+        sidebar.addEventListener('click', onSidebarClick)
         document.addEventListener('keydown', onKeyDown)
         document.addEventListener('focusin', onFocusIn)
         if (typeof MutationObserver === 'function') {
           drawerObserver = new MutationObserver(syncState)
           drawerObserver.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed', 'data-rightbar-collapsed'] })
+          settingsObserver = new MutationObserver(() => {
+            if (!fitSettingsPanel()) return
+            if (frame === null || frame.hasAttribute('data-sidebar-collapsed')) return
+            const layout = layoutService()
+            if (layout !== undefined) layout.toggleSidebar()
+          })
+          settingsObserver.observe(document.body, { childList: true })
+        }
+        if (fitSettingsPanel() && !frame.hasAttribute('data-sidebar-collapsed')) {
+          const layout = layoutService()
+          if (layout !== undefined) layout.toggleSidebar()
         }
         syncState()
         updateViewport()
@@ -623,6 +678,11 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
       const cleanup = () => {
         if (mountObserver !== null) { mountObserver.disconnect(); mountObserver = null }
         if (drawerObserver !== null) { drawerObserver.disconnect(); drawerObserver = null }
+        if (settingsObserver !== null) { settingsObserver.disconnect(); settingsObserver = null }
+        if (settingsModal !== null) {
+          for (const property of ['width', 'max-width', 'min-width', 'height', 'max-height', 'min-height', 'flex', 'margin']) settingsModal.style.removeProperty(property)
+          settingsModal = null
+        }
         if (unsubscribeLocale !== null) { unsubscribeLocale(); unsubscribeLocale = null }
         if (typeof document.removeEventListener === 'function') {
           document.removeEventListener('keydown', onKeyDown)
@@ -633,6 +693,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         window.visualViewport?.removeEventListener?.('scroll', updateViewport)
         if (menu !== null) menu.removeEventListener('click', onMenuClick)
         if (scrim !== null) scrim.removeEventListener('click', onScrimClick)
+        if (sidebar !== null) sidebar.removeEventListener('click', onSidebarClick)
         if (layer !== null) layer.remove()
         if (style !== null) style.remove()
         if (frame !== null) {
@@ -654,6 +715,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         }
         frame = null
         sidebar = null
+        settingsModal = null
         center = null
         rightbar = null
         composer = null
