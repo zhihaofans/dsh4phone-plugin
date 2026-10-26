@@ -21,6 +21,18 @@
 
 ## 安装
 
+### 从 npm 安装（发布后）
+
+包发布到 npm 后，包名就是安装参数：
+
+```bash
+dsh plugin --profile web add dsh4phone@0.0.2
+```
+
+`dsh plugin add` 只负责安装依赖，还需要在 DSH 插件管理器里启用 `dsh4phone` bundle。Desktop 请在应用的插件页面/插件市场安装并启用。
+
+> 当前 `0.0.2` 尚未发布到 npm（`package.json` 仍是 `private: true`），所以现在只能用下面的本地目录/插件管理器方式。
+
 ### 通过插件管理器（本仓库开发模式）
 
 在 DeepSeek Harness 里让插件管理器安装本目录（绝对路径），安装完成后重启或让 HMR 生效：
@@ -33,8 +45,11 @@ plugin_manager install_bundle  target=/absolute/path/to/dsh4phone-plugin
 
 ```bash
 dsh plugin --profile web add /absolute/path/to/dsh4phone-plugin
+# 然后在插件管理器里启用 dsh4phone；只 add 不会自动启用 bundle
 dsh --profile web
 ```
+
+`dsh plugin add` 等价于在 profile 目录执行 `pnpm add`，也接受 tarball、git 地址等安装参数；裸包名（如 `dsh4phone`）则要求该包已在 npm registry 上。
 
 > Desktop 的 profile 由应用管理，请在应用的插件页面安装或使用插件管理器；不要手动改 profile 的 `package.json` / `cordis.patch.yml`。
 
