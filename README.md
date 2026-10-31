@@ -6,6 +6,8 @@
 - 作者：zhihaofans
 - 目标：DeepSeek Harness Desktop `0.2.1-rc.2`（macOS）
 
+更新记录见 [CHANGELOG.md](CHANGELOG.md)；未完成事项与已知问题见 [TODO.md](TODO.md)。
+
 ## 能做什么
 
 - 在 DeepSeek Harness 左下角加入「手机访问」入口。
