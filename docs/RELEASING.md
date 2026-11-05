@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- `package.json` 仍是 `private: true`，npm 上还没有 `dsh4phone`（`npm view dsh4phone` 返回 404）。
-- 已推送 `0.0.2` 附注 tag，指向 `3881baa`；tag 之后只有 AGENTS/文档提交，代码未变。
-- 若要发布 `0.0.2`，得在其后新增「去掉 private」的提交，tag 与发布内容就不再一致；建议直接发 `0.0.3`，**不要移动或覆盖已推送的 `0.0.2` tag**。
+- `package.json` 已是 `0.0.3`，仍是 `private: true`；npm 上还没有 `dsh4phone`（`npm view dsh4phone` 返回 404）。
+- 已推送 `0.0.2` 附注 tag，指向 `3881baa`；**不要移动或覆盖**。
+- `0.0.3` 尚未打 tag、尚未发布；发布前按下面的检查清单补齐 `private`、`repository` 等字段。
 
 ## 版本规则
 

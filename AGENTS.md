@@ -6,7 +6,7 @@
 
 `dsh4phone` 是一个 DeepSeek Harness（DSH）Desktop 插件：在同一个局域网里，用手机浏览器打开这台电脑上的 DSH，使用**用户自己设置**的密码，而不是每次随机生成密码。
 
-- 目标版本：DSH Desktop `0.2.2-rc.1`（macOS）；当前版本：`0.0.2`
+- 目标版本：DSH Desktop `0.2.2-rc.1`（macOS）；当前版本：`0.0.3`
 - 作者：zhihaofans；License：MIT
 - 只监听私有局域网，不做公网穿透；局域网内是明文 HTTP
 - 手机和电脑共用同一份 DSH 页面、会话、工作区和工具；插件只做反向代理
@@ -74,7 +74,7 @@ plugin_manager set_bundle      target=dsh4phone enabled=true
 完整流程、检查清单和版本规则见 [docs/RELEASING.md](docs/RELEASING.md)。agent 只需记住：
 
 - 发布是用户的决定：改版本号、切 `[Unreleased]`、打 tag、`npm publish` 前都要先问。
-- 已推送的 `0.0.2` tag 指向 `3881baa`，不要移动或覆盖；下一次从干净的 `0.0.3` 提交发布。
+- 已推送的 `0.0.2` tag 指向 `3881baa`，不要移动或覆盖；`0.0.3` 已在仓库升版，发布时另打 tag。
 - npm 可解析 ≠ 进入插件市场：市场还需要 `dsh-plugin-catalog` 收录（见 TODO）。
 
 ## 安全约束（不要破坏）
@@ -107,7 +107,7 @@ plugin_manager set_bundle      target=dsh4phone enabled=true
 
 ```bash
 npm test
-# 29/29 Host checks, 58/58 Client checks（0.0.2）
+# 29/29 Host checks, 58/58 Client checks（0.0.3）
 ```
 
 - `test/host.test.mjs`：假上游、假 Cordis ctx、临时 `DSH_HOME`；覆盖登录、Cookie、代理头、重定向、WebSocket、管理 API 隔离、公开静态文件、二维码。

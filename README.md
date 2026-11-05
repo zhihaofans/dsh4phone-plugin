@@ -2,7 +2,7 @@
 
 在同一个局域网里，用手机浏览器打开这台电脑上的 DeepSeek Harness。密码由你自己设置，**不会每次随机生成**。
 
-- 插件版本：`0.0.2`
+- 插件版本：`0.0.3`
 - 作者：zhihaofans
 - 目标：DeepSeek Harness Desktop `0.2.2-rc.1`（macOS）
 
@@ -29,12 +29,12 @@
 包发布到 npm 后，包名就是安装参数：
 
 ```bash
-dsh plugin --profile web add dsh4phone@0.0.2
+dsh plugin --profile web add dsh4phone@0.0.3
 ```
 
 `dsh plugin add` 只负责安装依赖，还需要在 DSH 插件管理器里启用 `dsh4phone` bundle。Desktop 请在应用的插件页面/插件市场安装并启用。
 
-> 当前 `0.0.2` 尚未发布到 npm（`package.json` 仍是 `private: true`），所以现在只能用下面的本地目录/插件管理器方式。
+> 当前 `0.0.3` 尚未发布到 npm（`package.json` 仍是 `private: true`），所以现在只能用下面的本地目录/插件管理器方式。
 
 ### 通过插件管理器（本仓库开发模式）
 
@@ -89,7 +89,7 @@ $DSH_HOME/dsh4phone/state.json
 
 包含端口、开关、密码盐/哈希、会话签名密钥。删除该目录即可完全重置（密码和登录状态一起清空）。卸载插件不会删除该目录。
 
-## 已知限制（v0.0.2）
+## 已知限制（v0.0.3）
 
 - 手机小屏布局只在网关页面且视口 ≤640px 宽（或 ≤520px 高）时启用；641–1023 宽和平板继续用 DSH 原生窄轨道。
 - 手机右栏/终端打开时占满屏，左上按钮变为“返回对话”；若某个右侧面板没有自带关闭控件，用这个返回。
