@@ -16,14 +16,17 @@ const React = {
   useCallback: (fn) => fn,
 }
 
-function loadPlugin({ hostname, port, cookie }, windowOverrides = {}, documentOverrides = {}) {
+function loadPlugin({ hostname, port, cookie }, windowOverrides = {}, documentOverrides) {
   let registration = null
   const window = {
     __ModuleLoader__: { load: (value) => { registration = value } },
     location: { hostname, port },
     ...windowOverrides,
   }
-  const document = { cookie, ...documentOverrides }
+  // Keep the caller's document object: mutation-heavy fakes (activeElement,
+  // synthetic focus events, timers) must stay visible to the plugin.
+  const document = documentOverrides ?? {}
+  document.cookie = cookie
   new Function('window', 'document', 'navigator', source)(window, document, {})
   if (registration === null) throw new Error('client module did not register')
   if (registration.id !== 'dsh4phone') throw new Error(`unexpected client module id: ${registration.id}`)
@@ -81,6 +84,7 @@ for (const [label, surface, expected] of cases) {
 
 function createElement(tag = 'div') {
   const attributes = new Map()
+  const listeners = new Map()
   const element = {
     nodeType: 1,
     tagName: tag.toUpperCase(),
@@ -113,8 +117,12 @@ function createElement(tag = 'div') {
     getAttribute(key) { return attributes.has(key) ? attributes.get(key) : null },
     removeAttribute(key) { attributes.delete(key) },
     hasAttribute(key) { return attributes.has(key) },
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, handler) {
+      if (!listeners.has(type)) listeners.set(type, new Set())
+      listeners.get(type).add(handler)
+    },
+    removeEventListener(type, handler) { listeners.get(type)?.delete(handler) },
+    dispatch(type, event) { for (const handler of listeners.get(type) ?? []) handler(event) },
     querySelector(selector) {
       const walk = (node) => {
         for (const child of node.children) {
@@ -162,19 +170,29 @@ function makeDom({ nativeDrawer = false, withColumnClasses = true, matches = tru
   const overlay = { parentElement: frame }
   const documentElement = {
     dataset: {},
-    style: { setProperty() {}, removeProperty() {} },
+    style: {
+      values: new Map(),
+      setProperty(key, value) { this.values.set(key, value) },
+      removeProperty(key) { this.values.delete(key) },
+    },
   }
   const head = createElement('head')
   const body = createElement('body')
+  const listeners = new Map()
   const document = {
     cookie: 'dsh4phone_gateway=3721',
     documentElement,
     head,
     body,
+    activeElement: body,
     createElement: (tag) => createElement(tag),
     querySelector: (selector) => selector === '[data-shell-overlay]' ? overlay : null,
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, handler) {
+      if (!listeners.has(type)) listeners.set(type, new Set())
+      listeners.get(type).add(handler)
+    },
+    removeEventListener(type, handler) { listeners.get(type)?.delete(handler) },
+    dispatch(type, event) { for (const handler of listeners.get(type) ?? []) handler(event) },
   }
   const window = {
     matchMedia: () => ({ matches, addEventListener() {}, removeEventListener() {} }),
@@ -302,12 +320,121 @@ function runDrawerModeSwitchCase() {
   }
 }
 
+/**
+ * iOS keyboard state machine: shrink and follow visualViewport while a text
+ * field has focus, then ignore stale iOS 26 numbers once it loses focus. The
+ * short hold after focusout keeps toolbar buttons under the finger.
+ */
+function runKeyboardViewportCase() {
+  const dom = makeDom({ nativeDrawer: true })
+  const viewportListeners = new Map()
+  const viewport = {
+    height: 844,
+    offsetTop: 0,
+    scale: 1,
+    addEventListener(type, handler) {
+      if (!viewportListeners.has(type)) viewportListeners.set(type, new Set())
+      viewportListeners.get(type).add(handler)
+    },
+    removeEventListener(type, handler) { viewportListeners.get(type)?.delete(handler) },
+    emit(type) { for (const handler of viewportListeners.get(type) ?? []) handler({ type }) },
+  }
+  const timers = new Map()
+  let timerId = 0
+  Object.assign(dom.window, {
+    visualViewport: viewport,
+    setTimeout(callback) {
+      timers.set(timerId += 1, callback)
+      return timerId
+    },
+    clearTimeout(id) { timers.delete(id) },
+    scrollX: 0,
+    scrollY: 0,
+    scrollTo() {},
+  })
+  const { disposers } = mount(dom)
+  const cssVar = (name) => dom.documentElement.style.values.get(name) ?? null
+  const input = createElement('textarea')
+  const focus = (target) => {
+    dom.document.activeElement = target
+    dom.document.dispatch('focusin', { target })
+  }
+  const blur = (target) => {
+    dom.document.activeElement = dom.document.body
+    dom.document.dispatch('focusout', { target })
+  }
+  const runTimers = () => {
+    const callbacks = [...timers.values()]
+    timers.clear()
+    for (const callback of callbacks) callback()
+  }
+  check('keyboard: starts at the layout height',
+    cssVar('--d4p-vv-height') === '844px' && cssVar('--d4p-vv-top') === '0px',
+    `${cssVar('--d4p-vv-top')} / ${cssVar('--d4p-vv-height')}`)
+  focus(input)
+  viewport.height = 500
+  viewport.emit('resize')
+  check('keyboard: open shrinks the app', cssVar('--d4p-vv-height') === '500px' && cssVar('--d4p-vv-top') === '0px')
+  viewport.offsetTop = 100
+  viewport.emit('scroll')
+  check('keyboard: pan aligns the app top', cssVar('--d4p-vv-top') === '100px' && cssVar('--d4p-vv-height') === '500px')
+  blur(input)
+  viewport.height = 640
+  viewport.offsetTop = 0
+  viewport.emit('resize')
+  check('keyboard: close holds the tap target', cssVar('--d4p-vv-top') === '100px' && cssVar('--d4p-vv-height') === '500px')
+  runTimers()
+  check('keyboard: close restores the layout height', cssVar('--d4p-vv-top') === '0px' && cssVar('--d4p-vv-height') === '844px')
+  focus(input)
+  viewport.height = 500
+  viewport.emit('resize')
+  check('keyboard: reopens immediately', cssVar('--d4p-vv-height') === '500px' && cssVar('--d4p-vv-top') === '0px')
+  const button = createElement('button')
+  focus(button)
+  dom.document.dispatch('focusout', { target: input })
+  viewport.height = 620
+  viewport.offsetTop = 0
+  viewport.emit('resize')
+  check('keyboard: toolbar focus keeps the target steady', cssVar('--d4p-vv-height') === '500px')
+  runTimers()
+  check('keyboard: toolbar focus then restores the layout', cssVar('--d4p-vv-top') === '0px' && cssVar('--d4p-vv-height') === '844px')
+  for (const dispose of disposers.reverse()) dispose()
+}
+
+/**
+ * Composer toolbar taps must not move focus out of the editor: doing so
+ * collapses the iOS keyboard before click arrives.
+ */
+function runComposerTapCase() {
+  const dom = makeDom({ nativeDrawer: true })
+  const { disposers } = mount(dom)
+  const seat = createElement('div')
+  const editor = createElement('div')
+  editor.isContentEditable = true
+  editor.parentElement = seat
+  editor.closest = (selector) => selector.includes('_composerSeat') ? seat : null
+  const button = createElement('button')
+  button.closest = (selector) => selector.includes('button') ? button : null
+  dom.document.activeElement = editor
+  dom.document.dispatch('focusin', { target: editor })
+  check('composer: binds the toolbar container', seat.hasAttribute('data-d4p-composer'))
+  const buttonEvent = { target: button, prevented: false, preventDefault() { this.prevented = true } }
+  seat.dispatch('mousedown', buttonEvent)
+  check('composer: toolbar mousedown keeps the editor focus', buttonEvent.prevented)
+  const editorEvent = { target: editor, prevented: false, preventDefault() { this.prevented = true } }
+  seat.dispatch('mousedown', editorEvent)
+  check('composer: editor mousedown is left alone', !editorEvent.prevented)
+  for (const dispose of disposers.reverse()) dispose()
+}
+
 runViewportCase({ matches: true, label: '390px gateway' })
 runViewportCase({ matches: false, label: '1280px gateway' })
 runDrawerCase({ label: '0.2.2 drawer frame', nativeDrawer: true })
 runDrawerCase({ label: '0.2.2 drawer frame without column classes', nativeDrawer: true, withColumnClasses: false })
 runDrawerCase({ label: '0.2.1 frame', nativeDrawer: false })
 runDrawerModeSwitchCase()
+runKeyboardViewportCase()
+runComposerTapCase()
 
 const failed = results.filter((result) => !result.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)

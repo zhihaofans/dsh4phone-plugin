@@ -94,6 +94,7 @@ plugin_manager set_bundle      target=dsh4phone enabled=true
 - 左上菜单按钮打开抽屉；点遮罩/Esc/侧栏收起按钮关闭；原生模式下菜单打开后把焦点放到「新会话」，避免 DSH 自动聚焦原生开关时弹出的 tooltip 挡住首行
 - 菜单与会话标题同一行；后台任务状态在「对话/轨迹」标签行右侧
 - Composer 全宽，编辑器 16px，`visualViewport`/安全区适配
+- 软键盘：`body` 固定为 visualViewport 的 `top + height`；只有文本字段聚焦时才按可视视口收缩，`focusout` 后约 380ms 再恢复，给工具栏按钮（如「+」）的点击留出落点。iOS 26 可能在键盘收起后留下过期的 `offsetTop`/`height`，恢复时以 `innerHeight` 为准；不要再用 `scrollIntoView` 把整页推走
 - 设置弹窗全屏：窄屏交给 DSH 原生 `<768px` 布局；横屏（宽 >767 但高 ≤520）由 `fitSettingsPanel()` 内联样式兜底
 - 侧栏点击会话、插件/自动化任务/技能中心、新建会话后自动收起；行内操作菜单不收起
 - 点设置/打开设置面板时抽屉自动收起
@@ -106,11 +107,11 @@ plugin_manager set_bundle      target=dsh4phone enabled=true
 
 ```bash
 npm test
-# 29/29 Host checks, 47/47 Client checks（0.0.2）
+# 29/29 Host checks, 58/58 Client checks（0.0.2）
 ```
 
 - `test/host.test.mjs`：假上游、假 Cordis ctx、临时 `DSH_HOME`；覆盖登录、Cookie、代理头、重定向、WebSocket、管理 API 隔离、公开静态文件、二维码。
-- `test/client.test.mjs`：网关端口标记的 surface 矩阵、桌面面板注册、移动层安装/清理；0.2.2 的 `drawerMask + 三列` 结构、遮罩跳过、类名缺失回退，以及旋转时原生/回退抽屉模式的 scrim 切换。
+- `test/client.test.mjs`：网关端口标记的 surface 矩阵、桌面面板注册、移动层安装/清理；0.2.2 的 `drawerMask + 三列` 结构、遮罩跳过、类名缺失回退，旋转时原生/回退抽屉模式的 scrim 切换，以及软键盘的收缩/保持/恢复与 Composer 工具栏 mousedown 守护。
 - UI 手测用无头 Chrome（CDP）或真实手机；不要提交截图/临时 token。
 - 验证重点：手机登录、桌面入口、二维码、密码修改/退出所有手机、移动端会话/Composer、设置页、抽屉自动收起；Host 改动后必须重启验证。
 

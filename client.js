@@ -92,7 +92,7 @@ body[data-ds-dark-theme] .d4p-dialog{color-scheme:dark}
 
     const MOBILE_STYLE = `
 html[data-d4p-mobile],html[data-d4p-mobile] body{height:100%;overflow:hidden;overscroll-behavior:none}
-html[data-d4p-mobile] body{height:var(--d4p-vv-height,100dvh);background:var(--dsw-alias-bg-base)}
+html[data-d4p-mobile] body{position:fixed;top:var(--d4p-vv-top,0px);right:0;left:0;width:100%;height:var(--d4p-vv-height,100dvh);background:var(--dsw-alias-bg-base)}
 html[data-d4p-mobile] #root{height:100%}
 html[data-d4p-mobile] [data-d4p-frame]{height:100%!important;grid-template-columns:0 minmax(0,1fr) 0!important;grid-template-rows:minmax(0,1fr) auto!important;padding-top:0!important;--dsh-frame-leading-clearance:0px!important;--dsh-frame-top-clearance:0px!important;--dsh-frame-chrome-top:0px!important}
 html[data-d4p-mobile] [data-d4p-frame]>[data-shell-leading],
@@ -116,7 +116,7 @@ html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-
 html[data-d4p-mobile] [data-d4p-mobile-layer]{position:fixed;inset:0;z-index:900;pointer-events:none}
 html[data-d4p-mobile] .d4p-mobile-scrim{position:absolute;inset:0;background:rgba(0,0,0,.46);opacity:0;pointer-events:none;transition:opacity .18s}
 html[data-d4p-mobile][data-d4p-drawer="open"] .d4p-mobile-scrim{opacity:1;pointer-events:auto}
-html[data-d4p-mobile] .d4p-mobile-menu{position:fixed;top:calc(env(safe-area-inset-top) + 7px);left:8px;z-index:1;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 88%,transparent);color:var(--dsw-alias-label-primary);box-shadow:0 2px 12px rgba(0,0,0,.16);backdrop-filter:blur(12px);cursor:pointer;pointer-events:auto}
+html[data-d4p-mobile] .d4p-mobile-menu{position:fixed;top:calc(var(--d4p-vv-top,0px) + env(safe-area-inset-top) + 7px);left:8px;z-index:1;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 88%,transparent);color:var(--dsw-alias-label-primary);box-shadow:0 2px 12px rgba(0,0,0,.16);backdrop-filter:blur(12px);cursor:pointer;pointer-events:auto}
 html[data-d4p-mobile] .d4p-mobile-menu:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,currentColor);outline-offset:2px}
 html[data-d4p-mobile][data-d4p-drawer="open"] .d4p-mobile-menu{display:none}
 html[data-d4p-mobile] .d4p-mobile-icon-back{display:none}
@@ -483,6 +483,11 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
       let meta = null
       let previousMeta = null
       let unsubscribeLocale = null
+      let viewportFrame = null
+      let viewportForce = false
+      let viewportHoldUntil = 0
+      let viewportHoldTimer = null
+      let appliedViewport = null
 
       const findFrame = () => {
         const overlay = document.querySelector('[data-shell-overlay]')
@@ -630,20 +635,135 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         }
       }
 
-      const onFocusIn = (event) => {
+      const onComposerMouseDown = (event) => {
         const target = event.target
         if (target === null || target === undefined || typeof target.closest !== 'function') return
-        if (target.closest('[data-d4p-composer]') === null) return
-        window.setTimeout(() => {
-          if (composer !== null && typeof composer.scrollIntoView === 'function') {
-            composer.scrollIntoView({ block: 'nearest' })
-          }
-        }, 260)
+        if (target.closest('button, [role="button"]') === null) return
+        // Keep the editor focused while a toolbar button is pressed. Losing
+        // focus collapses the keyboard and moves the button between
+        // pointerdown and click, so the tap lands somewhere else.
+        event.preventDefault()
       }
 
-      const updateViewport = () => {
-        const height = window.visualViewport?.height ?? window.innerHeight
-        if (Number.isFinite(height)) root.style.setProperty('--d4p-vv-height', `${Math.round(height)}px`)
+      const bindComposer = (editor) => {
+        if (editor === null || editor === undefined || typeof editor.closest !== 'function') return
+        const seat = editor.closest('[class*="_composerSeat"]') ?? editor.parentElement
+        if (seat === null || seat === undefined || seat === composer) return
+        if (composer !== null) {
+          composer.removeEventListener('mousedown', onComposerMouseDown, true)
+          composer.removeAttribute('data-d4p-composer')
+        }
+        composer = seat
+        seat.setAttribute('data-d4p-composer', '')
+        seat.addEventListener('mousedown', onComposerMouseDown, true)
+      }
+
+      const NON_TEXT_INPUTS = /^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/u
+
+      const isTextField = (element) => {
+        if (element === null || element === undefined || element.nodeType !== 1) return false
+        if (element.isContentEditable === true) return true
+        const tag = (element.tagName ?? '').toUpperCase()
+        if (tag === 'TEXTAREA') return element.disabled !== true && element.readOnly !== true
+        if (tag !== 'INPUT') return false
+        const type = (element.getAttribute?.('type') ?? 'text').toLowerCase()
+        return !NON_TEXT_INPUTS.test(type) && element.disabled !== true && element.readOnly !== true
+      }
+
+      const clearViewportHold = () => {
+        viewportHoldUntil = 0
+        if (viewportHoldTimer !== null) {
+          window.clearTimeout?.(viewportHoldTimer)
+          viewportHoldTimer = null
+        }
+      }
+
+      /**
+       * iOS Safari keeps the layout viewport at full height and pans the
+       * visual viewport to reveal the keyboard. Size the app to the visible
+       * box (top + height) instead of only its height, so the header stays on
+       * screen and the composer clears the keys. The focus check is what
+       * lets us ignore iOS 26's stale offsetTop after dismissal.
+       */
+      const viewportTarget = () => {
+        const vv = window.visualViewport
+        const layout = window.innerHeight
+        if (vv === undefined || vv === null || !Number.isFinite(vv.height)) {
+          return { top: 0, height: layout, keyboard: false }
+        }
+        const scale = Number.isFinite(vv.scale) ? vv.scale : 1
+        if (scale > 1.01) return { top: 0, height: layout, keyboard: false }
+        const top = Math.max(0, Math.round(vv.offsetTop ?? 0))
+        const height = Math.round(vv.height)
+        const covered = layout - height - top
+        if (!isTextField(document.activeElement) || covered <= 80) {
+          return { top: 0, height: layout, keyboard: false }
+        }
+        return { top, height, keyboard: true }
+      }
+
+      const applyViewport = (force = false) => {
+        if (frame === null) return
+        const target = viewportTarget()
+        if (!target.keyboard && !force && Date.now() < viewportHoldUntil) return
+        const top = target.keyboard ? target.top : 0
+        const height = target.keyboard ? target.height : window.innerHeight
+        if (!Number.isFinite(height) || height <= 0) return
+        // iOS 26 can leave the layout viewport scrolled after the keyboard
+        // closes; the fixed body no longer needs that offset. Do this even
+        // when the height did not change, so a stale offset is cleared.
+        if (!target.keyboard
+          && typeof window.scrollTo === 'function'
+          && ((window.scrollX ?? 0) !== 0 || (window.scrollY ?? 0) !== 0)) {
+          window.scrollTo(0, 0)
+        }
+        if (appliedViewport !== null && appliedViewport.top === top && appliedViewport.height === height) return
+        appliedViewport = { top, height }
+        root.style.setProperty('--d4p-vv-top', `${top}px`)
+        root.style.setProperty('--d4p-vv-height', `${height}px`)
+      }
+
+      const scheduleViewport = (force = false) => {
+        viewportForce = viewportForce || force
+        if (viewportFrame !== null) return
+        if (typeof window.requestAnimationFrame !== 'function') {
+          const shouldForce = viewportForce
+          viewportForce = false
+          applyViewport(shouldForce)
+          return
+        }
+        viewportFrame = window.requestAnimationFrame(() => {
+          viewportFrame = null
+          const shouldForce = viewportForce
+          viewportForce = false
+          applyViewport(shouldForce)
+        })
+      }
+
+      const updateViewport = () => { scheduleViewport() }
+
+      const onFocusIn = (event) => {
+        if (!isTextField(event.target)) return
+        // Only a field inside a composer seat gets the toolbar focus guard;
+        // sidebar search and settings inputs must keep their own behavior.
+        if (typeof event.target.closest === 'function' && event.target.closest('[class*="_composerSeat"]') !== null) {
+          bindComposer(event.target)
+        }
+        clearViewportHold()
+        scheduleViewport()
+      }
+
+      const onFocusOut = (event) => {
+        if (!isTextField(event.target)) return
+        // Let a tap on the composer toolbar (attach, send) land before the
+        // app grows back to the layout viewport and moves the button away.
+        viewportHoldUntil = Date.now() + 350
+        if (viewportHoldTimer !== null) window.clearTimeout?.(viewportHoldTimer)
+        viewportHoldTimer = window.setTimeout(() => {
+          viewportHoldTimer = null
+          viewportHoldUntil = 0
+          scheduleViewport(true)
+        }, 380)
       }
 
       const decorate = () => {
@@ -670,10 +790,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         center.setAttribute('data-d4p-center', '')
         if (rightbar !== null) rightbar.setAttribute('data-d4p-rightbar', '')
         const editor = center.querySelector('[contenteditable="true"], textarea')
-        if (editor !== null) {
-          composer = editor.closest('[class*="_composerSeat"]') ?? editor.parentElement
-          if (composer !== null) composer.setAttribute('data-d4p-composer', '')
-        }
+        if (editor !== null) bindComposer(editor)
         meta = document.querySelector('meta[name="viewport"]')
         previousMeta = meta === null ? null : meta.getAttribute('content')
         if (meta !== null) meta.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover')
@@ -697,6 +814,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         sidebar.addEventListener('click', onSidebarClick)
         document.addEventListener('keydown', onKeyDown)
         document.addEventListener('focusin', onFocusIn)
+        document.addEventListener('focusout', onFocusOut)
         if (typeof MutationObserver === 'function') {
           drawerObserver = new MutationObserver(() => {
             syncDrawerMode()
@@ -716,7 +834,8 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
           if (layout !== undefined) layout.toggleSidebar()
         }
         syncState()
-        updateViewport()
+        // Paint the initial viewport before the first visualViewport event.
+        applyViewport(true)
         if (typeof window.addEventListener === 'function') window.addEventListener('resize', updateViewport)
         window.visualViewport?.addEventListener?.('resize', updateViewport)
         window.visualViewport?.addEventListener?.('scroll', updateViewport)
@@ -736,12 +855,22 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         if (typeof document.removeEventListener === 'function') {
           document.removeEventListener('keydown', onKeyDown)
           document.removeEventListener('focusin', onFocusIn)
+          document.removeEventListener('focusout', onFocusOut)
         }
         if (typeof window.removeEventListener === 'function') window.removeEventListener('resize', updateViewport)
         window.visualViewport?.removeEventListener?.('resize', updateViewport)
         window.visualViewport?.removeEventListener?.('scroll', updateViewport)
+        if (viewportFrame !== null) {
+          window.cancelAnimationFrame?.(viewportFrame)
+          viewportFrame = null
+        }
+        clearViewportHold()
         if (menu !== null) menu.removeEventListener('click', onMenuClick)
         if (scrim !== null) scrim.removeEventListener('click', onScrimClick)
+        if (composer !== null) {
+          composer.removeEventListener('mousedown', onComposerMouseDown, true)
+          composer.removeAttribute('data-d4p-composer')
+        }
         if (sidebar !== null) sidebar.removeEventListener('click', onSidebarClick)
         if (layer !== null) layer.remove()
         if (style !== null) style.remove()
@@ -760,6 +889,8 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
           delete root.dataset.d4pDrawer
           delete root.dataset.d4pRightbar
           root.style.removeProperty('--d4p-vv-height')
+          root.style.removeProperty('--d4p-vv-top')
+          appliedViewport = null
           if (meta !== null && previousMeta !== null) meta.setAttribute('content', previousMeta)
         }
         frame = null
