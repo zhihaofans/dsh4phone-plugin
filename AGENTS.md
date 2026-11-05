@@ -6,7 +6,7 @@
 
 `dsh4phone` 是一个 DeepSeek Harness（DSH）Desktop 插件：在同一个局域网里，用手机浏览器打开这台电脑上的 DSH，使用**用户自己设置**的密码，而不是每次随机生成密码。
 
-- 目标版本：DSH Desktop `0.2.1-rc.2`（macOS）；当前版本：`0.0.2`
+- 目标版本：DSH Desktop `0.2.2-rc.1`（macOS）；当前版本：`0.0.2`
 - 作者：zhihaofans；License：MIT
 - 只监听私有局域网，不做公网穿透；局域网内是明文 HTTP
 - 手机和电脑共用同一份 DSH 页面、会话、工作区和工具；插件只做反向代理
@@ -90,26 +90,27 @@ plugin_manager set_bundle      target=dsh4phone enabled=true
 
 `client.js` 在网关页面且 `(max-width: 640px), (max-height: 520px)` 时安装移动层：
 
-- 侧栏变成 off-canvas 抽屉；左上菜单按钮打开，遮罩/Esc/收起按钮关闭
+- DSH ≥0.2.2 在 `<768px` 原生提供抽屉（`data-sidebar-drawer` + `data-sidebar-mask`）：插件复用它的抽屉、遮罩和 Esc 关闭，不再自己画固定抽屉；`≥768px` 或旧版 DSH 才回退到插件的固定抽屉 + 遮罩
+- 左上菜单按钮打开抽屉；点遮罩/Esc/侧栏收起按钮关闭；原生模式下菜单打开后把焦点放到「新会话」，避免 DSH 自动聚焦原生开关时弹出的 tooltip 挡住首行
 - 菜单与会话标题同一行；后台任务状态在「对话/轨迹」标签行右侧
 - Composer 全宽，编辑器 16px，`visualViewport`/安全区适配
-- 设置弹窗全屏：`Dws9Sa_*` 导航改为横向标签，内容全宽
+- 设置弹窗全屏：窄屏交给 DSH 原生 `<768px` 布局；横屏（宽 >767 但高 ≤520）由 `fitSettingsPanel()` 内联样式兜底
 - 侧栏点击会话、插件/自动化任务/技能中心、新建会话后自动收起；行内操作菜单不收起
 - 点设置/打开设置面板时抽屉自动收起
 - 桌面端、641–1023 宽和平板保持 DSH 原生布局
 - DOM 结构或 layout 服务不存在时 fail-open，不要为移动层破坏桌面
 
-注意：`Dws9Sa_*` 和 `_header`/`_tabs`/`_panelRow` 等是当前 DSH 版本的 CSS Module 类名；升级 DSH 后要重新核对，不要假设永久稳定。改布局后至少检查 390×844、320×568、844×390、1280×900，并验证设置页和抽屉自动收起。
+注意：列定位依赖 `_sidebarCol` / `_centerCol` / `_rightbarCol` 类名后缀，并显式跳过 `[data-sidebar-mask]`（0.2.2 里它在 frame 第一个子元素）；`_header` / `_tabs` / `_composerSeat` / `_panelRow` 等后缀也仍是 CSS Module 类名。升级 DSH 后要重新核对，不要假设永久稳定。设置弹窗的旧 `Dws9Sa_*` 类名在 0.2.2 已换掉，插件不再依赖它。改布局后至少检查 390×844、320×568、844×390、1280×900，并验证设置页、抽屉自动收起和旋转后的抽屉模式切换。
 
 ## 测试与验证
 
 ```bash
 npm test
-# 29/29 Host checks, 19/19 Client checks（0.0.2）
+# 29/29 Host checks, 47/47 Client checks（0.0.2）
 ```
 
 - `test/host.test.mjs`：假上游、假 Cordis ctx、临时 `DSH_HOME`；覆盖登录、Cookie、代理头、重定向、WebSocket、管理 API 隔离、公开静态文件、二维码。
-- `test/client.test.mjs`：网关端口标记的 surface 矩阵、桌面面板注册、移动层安装/清理。
+- `test/client.test.mjs`：网关端口标记的 surface 矩阵、桌面面板注册、移动层安装/清理；0.2.2 的 `drawerMask + 三列` 结构、遮罩跳过、类名缺失回退，以及旋转时原生/回退抽屉模式的 scrim 切换。
 - UI 手测用无头 Chrome（CDP）或真实手机；不要提交截图/临时 token。
 - 验证重点：手机登录、桌面入口、二维码、密码修改/退出所有手机、移动端会话/Composer、设置页、抽屉自动收起；Host 改动后必须重启验证。
 
@@ -129,4 +130,4 @@ npm test
 - 无 HTTPS、无 mDNS；手机需手动输入/扫码地址
 - 管理面板只在电脑端显示；手机端不能远程改密码/开关网关
 - 上游使用 DSH 的 loopback 登录 token；DSH 重启后插件自动重新换取
-- 小屏布局依赖 DSH 当前 CSS Module 类名，升级 DSH 后需要回归（见 TODO）
+- 小屏布局依赖 DSH 的列类名后缀与原生抽屉属性，升级 DSH 后需要回归；真实手机点测仍见 `TODO.md`

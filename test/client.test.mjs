@@ -79,58 +79,118 @@ for (const [label, surface, expected] of cases) {
   check(label, injections.length === expected, `${injections.length} slot(s) ${JSON.stringify(injections)}`)
 }
 
-function createElement() {
-  return {
+function createElement(tag = 'div') {
+  const attributes = new Map()
+  const element = {
     nodeType: 1,
+    tagName: tag.toUpperCase(),
     id: '',
     className: '',
     innerHTML: '',
     textContent: '',
-    style: {},
+    type: '',
     dataset: {},
-    setAttribute() {},
-    getAttribute() { return null },
-    removeAttribute() {},
-    append() {},
-    remove() {},
+    style: {
+      values: new Map(),
+      setProperty(key, value) { this.values.set(key, value) },
+      removeProperty(key) { this.values.delete(key) },
+    },
+    children: [],
+    parentElement: null,
+    append(...nodes) {
+      for (const node of nodes) {
+        if (node === null || node === undefined) continue
+        node.parentElement = element
+        element.children.push(node)
+      }
+    },
+    remove() {
+      if (element.parentElement !== null) {
+        element.parentElement.children = element.parentElement.children.filter((child) => child !== element)
+      }
+    },
+    setAttribute(key, value = '') { attributes.set(key, String(value)) },
+    getAttribute(key) { return attributes.has(key) ? attributes.get(key) : null },
+    removeAttribute(key) { attributes.delete(key) },
+    hasAttribute(key) { return attributes.has(key) },
     addEventListener() {},
     removeEventListener() {},
-    querySelector() { return null },
+    querySelector(selector) {
+      const walk = (node) => {
+        for (const child of node.children) {
+          if (selector === '[data-sidebar-mask]' && child.hasAttribute('data-sidebar-mask')) return child
+          const nested = walk(child)
+          if (nested !== null) return nested
+        }
+        return null
+      }
+      return walk(element)
+    },
+    querySelectorAll() { return [] },
+    closest() { return null },
     focus() {},
-    hasAttribute() { return true },
+    scrollIntoView() {},
   }
+  return element
 }
 
-function runMobileCase({ matches, label }) {
+/**
+ * Build the two useful frame shapes:
+ * - DSH 0.2.2 drawer (<768px): mask, sidebar, center, rightbar;
+ * - older DSH / landscape: sidebar, center, rightbar.
+ * `withColumnClasses` stays on by default; the false variant exercises the
+ * mask-aware index fallback.
+ */
+function makeDom({ nativeDrawer = false, withColumnClasses = true, matches = true }) {
   const sidebar = createElement()
   const center = createElement()
   const rightbar = createElement()
+  const mask = nativeDrawer ? createElement() : null
+  if (withColumnClasses) {
+    sidebar.className = 'PIRFFq_sidebarCol'
+    center.className = 'PIRFFq_centerCol'
+    rightbar.className = 'PIRFFq_rightbarCol'
+  }
+  if (mask !== null) mask.setAttribute('data-sidebar-mask', '')
   const frame = createElement()
-  frame.children = [sidebar, center, rightbar]
+  frame.className = 'PIRFFq_frame'
+  frame.children = nativeDrawer ? [mask, sidebar, center, rightbar] : [sidebar, center, rightbar]
+  for (const child of frame.children) child.parentElement = frame
+  frame.setAttribute('data-sidebar-collapsed', '')
+  frame.setAttribute('data-rightbar-collapsed', '')
+  if (nativeDrawer) frame.setAttribute('data-sidebar-drawer', '')
   const overlay = { parentElement: frame }
   const documentElement = {
     dataset: {},
     style: { setProperty() {}, removeProperty() {} },
   }
+  const head = createElement('head')
+  const body = createElement('body')
   const document = {
     cookie: 'dsh4phone_gateway=3721',
     documentElement,
-    head: { append() {} },
-    body: { append() {} },
-    createElement,
+    head,
+    body,
+    createElement: (tag) => createElement(tag),
     querySelector: (selector) => selector === '[data-shell-overlay]' ? overlay : null,
     addEventListener() {},
     removeEventListener() {},
   }
+  const window = {
+    matchMedia: () => ({ matches, addEventListener() {}, removeEventListener() {} }),
+    innerHeight: 844,
+    addEventListener() {},
+    removeEventListener() {},
+    setTimeout: (callback) => { callback(); return 0 },
+  }
+  return { document, window, documentElement, frame, sidebar, center, rightbar, mask, body }
+}
+
+function mount(dom) {
   const plugin = loadPlugin(
     { hostname: '192.168.5.24', port: '3721', cookie: 'dsh4phone_gateway=3721' },
-    {
-      matchMedia: () => ({ matches, addEventListener() {}, removeEventListener() {} }),
-      innerHeight: 844,
-      addEventListener() {},
-      removeEventListener() {},
-    },
-    document,
+    dom.window,
+    dom.document,
   )
   const disposers = []
   const injections = []
@@ -148,18 +208,106 @@ function runMobileCase({ matches, label }) {
     },
   }
   plugin.apply(ctx)
+  return { disposers, injections }
+}
+
+function runViewportCase({ matches, label }) {
+  const dom = makeDom({ matches })
+  const { disposers, injections } = mount(dom)
   if (matches) {
-    check(`${label}: mobile layer installed`, documentElement.dataset.d4pMobile === 'true', String(documentElement.dataset.d4pMobile))
+    check(`${label}: mobile layer installed`, dom.documentElement.dataset.d4pMobile === 'true', String(dom.documentElement.dataset.d4pMobile))
     check(`${label}: no desktop slots`, injections.length === 0, `${injections.length} slot(s)`)
     for (const dispose of disposers.reverse()) dispose()
-    check(`${label}: cleanup removes the layer`, documentElement.dataset.d4pMobile === undefined)
-  } else {
-    check(`${label}: wide gateway stays stock`, documentElement.dataset.d4pMobile === undefined)
+    check(`${label}: cleanup removes the layer`, dom.documentElement.dataset.d4pMobile === undefined)
+    return
+  }
+  check(`${label}: wide gateway stays stock`, dom.documentElement.dataset.d4pMobile === undefined)
+}
+
+/**
+ * The 0.2.2 regression: the frame's first child is the empty drawer mask, so
+ * index-only lookup used to mark the mask as the sidebar and open a blank
+ * drawer. Every column must be found by its class suffix, or by index after
+ * removing the mask.
+ */
+function runDrawerCase({ label, nativeDrawer, withColumnClasses = true }) {
+  const dom = makeDom({ nativeDrawer, withColumnClasses })
+  const { disposers, injections } = mount(dom)
+  check(`${label}: mobile layer installed`, dom.documentElement.dataset.d4pMobile === 'true')
+  check(`${label}: real sidebar marked`, dom.sidebar.hasAttribute('data-d4p-sidebar'))
+  check(`${label}: center marked`, dom.center.hasAttribute('data-d4p-center'))
+  check(`${label}: rightbar marked`, dom.rightbar.hasAttribute('data-d4p-rightbar'))
+  if (dom.mask !== null) {
+    check(`${label}: native mask stays unmarked`, !dom.mask.hasAttribute('data-d4p-sidebar'))
+  }
+  const layer = dom.body.children.find((child) => child.hasAttribute('data-d4p-mobile-layer'))
+  const scrim = layer === undefined ? undefined : layer.children.find((child) => child.className === 'd4p-mobile-scrim')
+  check(`${label}: ${nativeDrawer ? 'native mask reused' : 'fallback scrim installed'}`, nativeDrawer ? scrim === undefined : scrim !== undefined)
+  check(`${label}: no desktop slots`, injections.length === 0)
+  for (const dispose of disposers.reverse()) dispose()
+  check(`${label}: cleanup removes the markers`,
+    !dom.sidebar.hasAttribute('data-d4p-sidebar')
+    && !dom.center.hasAttribute('data-d4p-center')
+    && (dom.mask === null || !dom.mask.hasAttribute('data-d4p-sidebar'))
+    && dom.documentElement.dataset.d4pMobile === undefined)
+}
+
+/**
+ * Rotation can cross DSH's 768px native-drawer boundary while the phone media
+ * query still matches. The observer must swap the scrim to follow the frame.
+ */
+class FakeMutationObserver {
+  static all = []
+  constructor(callback) {
+    this.callback = callback
+    this.target = null
+    this.options = {}
+    FakeMutationObserver.all.push(this)
+  }
+  observe(target, options = {}) {
+    this.target = target
+    this.options = options
+  }
+  disconnect() {
+    this.target = null
+  }
+  static reset() {
+    FakeMutationObserver.all = []
   }
 }
 
-runMobileCase({ matches: true, label: '390px gateway' })
-runMobileCase({ matches: false, label: '1280px gateway' })
+function runDrawerModeSwitchCase() {
+  const previous = globalThis.MutationObserver
+  globalThis.MutationObserver = FakeMutationObserver
+  FakeMutationObserver.reset()
+  const dom = makeDom({ nativeDrawer: true })
+  const { disposers } = mount(dom)
+  try {
+    const layer = dom.body.children.find((child) => child.hasAttribute('data-d4p-mobile-layer'))
+    const scrimOf = () => layer.children.find((child) => child.className === 'd4p-mobile-scrim')
+    const observer = FakeMutationObserver.all.find((entry) =>
+      entry.target === dom.frame && entry.options.attributeFilter?.includes('data-sidebar-drawer'))
+    check('rotation: drawer observer watches the native mode', observer !== undefined)
+    check('rotation: native mode starts without a scrim', scrimOf() === undefined)
+    dom.frame.removeAttribute('data-sidebar-drawer')
+    observer.callback([])
+    check('rotation: leaving native mode installs the scrim', scrimOf() !== undefined)
+    check('rotation: fallback mode is not duplicated', layer.children.filter((child) => child.className === 'd4p-mobile-scrim').length === 1)
+    dom.frame.setAttribute('data-sidebar-drawer', '')
+    observer.callback([])
+    check('rotation: returning to native mode removes the scrim', scrimOf() === undefined)
+  } finally {
+    for (const dispose of disposers.reverse()) dispose()
+    globalThis.MutationObserver = previous
+  }
+}
+
+runViewportCase({ matches: true, label: '390px gateway' })
+runViewportCase({ matches: false, label: '1280px gateway' })
+runDrawerCase({ label: '0.2.2 drawer frame', nativeDrawer: true })
+runDrawerCase({ label: '0.2.2 drawer frame without column classes', nativeDrawer: true, withColumnClasses: false })
+runDrawerCase({ label: '0.2.1 frame', nativeDrawer: false })
+runDrawerModeSwitchCase()
 
 const failed = results.filter((result) => !result.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)

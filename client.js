@@ -97,8 +97,9 @@ html[data-d4p-mobile] #root{height:100%}
 html[data-d4p-mobile] [data-d4p-frame]{height:100%!important;grid-template-columns:0 minmax(0,1fr) 0!important;grid-template-rows:minmax(0,1fr) auto!important;padding-top:0!important;--dsh-frame-leading-clearance:0px!important;--dsh-frame-top-clearance:0px!important;--dsh-frame-chrome-top:0px!important}
 html[data-d4p-mobile] [data-d4p-frame]>[data-shell-leading],
 html[data-d4p-mobile] [data-d4p-frame]>[class*="_handle"]{display:none!important}
-html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar]{position:fixed!important;top:0;bottom:0;left:0;z-index:950;display:flex;flex-direction:column;width:min(86vw,340px);max-width:100%;height:100%;box-sizing:border-box;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);background:var(--dsw-specific-sidebar-fill,var(--dsw-alias-bg-base));border-right:1px solid var(--dsw-alias-border-l1);box-shadow:0 0 44px rgba(0,0,0,.38);overflow:hidden;visibility:hidden;transform:translateX(-103%);transition:transform .2s var(--ds-ease-in-out,ease),visibility .2s}
-html[data-d4p-mobile][data-d4p-drawer="open"] [data-d4p-frame]>[data-d4p-sidebar]{visibility:visible;transform:none}
+html[data-d4p-mobile] [data-d4p-frame]:not([data-sidebar-drawer])>[data-d4p-sidebar]{position:fixed!important;top:0;bottom:0;left:0;z-index:950;display:flex;flex-direction:column;width:min(86vw,340px);max-width:100%;height:100%;box-sizing:border-box;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);background:var(--dsw-specific-sidebar-fill,var(--dsw-alias-bg-base));border-right:1px solid var(--dsw-alias-border-l1);box-shadow:0 0 44px rgba(0,0,0,.38);overflow:hidden;visibility:hidden;transform:translateX(-103%);transition:transform .2s var(--ds-ease-in-out,ease),visibility .2s}
+html[data-d4p-mobile][data-d4p-drawer="open"] [data-d4p-frame]:not([data-sidebar-drawer])>[data-d4p-sidebar]{visibility:visible;transform:none}
+html[data-d4p-mobile] [data-d4p-frame][data-sidebar-drawer]>[data-d4p-sidebar]{box-sizing:border-box;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar]>*{flex:1 1 auto;min-height:0}
 html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar] [class*="_topStrip"]{display:none!important}
 html[data-d4p-mobile] [data-d4p-frame]>[data-d4p-sidebar] [class*="_logoRow"]{height:44px;margin-bottom:4px}
@@ -109,20 +110,6 @@ html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerUtili
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerActions"]{position:absolute!important;right:12px;bottom:2px;z-index:2;display:flex;max-width:calc(100% - 150px);overflow:hidden}
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_headerActions"]>div>:not(:last-child){display:none!important}
 html[data-d4p-mobile] [data-d4p-center] [class*="_header"] [class*="_tabs"]{gap:20px!important}
-html[data-d4p-mobile] .Dws9Sa_overlay{align-items:stretch;justify-content:stretch}
-html[data-d4p-mobile] .Dws9Sa_panel{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border-radius:0;flex-direction:column;background:var(--dsw-alias-bg-base)}
-html[data-d4p-mobile] .Dws9Sa_nav{width:100%;padding:calc(env(safe-area-inset-top) + 10px) 12px 0;gap:8px}
-html[data-d4p-mobile] .Dws9Sa_navTitle{padding:0 4px;font-size:18px;line-height:28px;min-height:36px;display:flex;align-items:center}
-html[data-d4p-mobile] .Dws9Sa_navList{flex-direction:row;gap:6px;overflow-x:auto;overflow-y:hidden;padding-bottom:8px;scrollbar-width:none}
-html[data-d4p-mobile] .Dws9Sa_navList::-webkit-scrollbar{display:none}
-html[data-d4p-mobile] .Dws9Sa_navCell{flex:none;height:36px;padding:6px 12px;white-space:nowrap}
-html[data-d4p-mobile] .Dws9Sa_navIcon{display:none}
-html[data-d4p-mobile] .Dws9Sa_navLabel{flex:none;overflow:visible}
-html[data-d4p-mobile] .Dws9Sa_content{flex:1;min-height:0}
-html[data-d4p-mobile] .Dws9Sa_header{position:absolute;top:calc(env(safe-area-inset-top) + 8px);right:8px;height:36px;padding:0;z-index:3;align-items:center}
-html[data-d4p-mobile] .Dws9Sa_actions{gap:6px}
-html[data-d4p-mobile] .Dws9Sa_close{width:32px;height:32px}
-html[data-d4p-mobile] .Dws9Sa_options{padding:0 14px calc(env(safe-area-inset-bottom) + 20px)}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed]){grid-template-columns:0 0 minmax(0,1fr)!important}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-center]{display:none!important}
 html[data-d4p-mobile] [data-d4p-frame]:not([data-rightbar-collapsed])>[data-d4p-rightbar]{grid-column:3;width:100%;min-width:0;height:100%;box-sizing:border-box;padding-top:calc(52px + env(safe-area-inset-top));overflow:hidden}
@@ -502,6 +489,35 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         return overlay === null || overlay === undefined ? null : overlay.parentElement
       }
 
+      const classSuffix = (element, suffix) => {
+        if (element === null || element === undefined) return false
+        const value = typeof element.className === 'string'
+          ? element.className
+          : element.getAttribute?.('class') ?? ''
+        return value.split(/\s+/u).some((name) => name.endsWith(suffix))
+      }
+
+      /**
+       * Pick one of the frame's three column slots. DSH 0.2.2 renders the
+       * drawer mask as the frame's first child, so index-only lookup would
+       * hand the empty mask to the sidebar drawer. Prefer the stable column
+       * class suffix, and fall back to child order with the mask removed.
+       */
+      const findColumn = (frameElement, suffix, index) => {
+        const children = Array.from(frameElement.children ?? [])
+        const mask = typeof frameElement.querySelector === 'function'
+          ? frameElement.querySelector('[data-sidebar-mask]')
+          : null
+        const slots = mask === null || mask === undefined
+          ? children
+          : children.filter((child) => child !== mask)
+        return slots.find((child) => child.nodeType === 1 && classSuffix(child, suffix)) ?? slots[index] ?? null
+      }
+
+      const usesNativeDrawer = () => frame !== null
+        && typeof frame.hasAttribute === 'function'
+        && frame.hasAttribute('data-sidebar-drawer')
+
       const syncLabels = () => {
         if (menu === null || frame === null) return
         const back = !frame.hasAttribute('data-rightbar-collapsed')
@@ -530,9 +546,15 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         }
         layout.toggleSidebar()
         window.setTimeout(() => {
-          if (frame !== null && !frame.hasAttribute('data-sidebar-collapsed') && sidebar !== null) {
-            const target = sidebar.querySelector('button, [href], [tabindex]')
-            if (target !== null && target !== undefined && typeof target.focus === 'function') target.focus()
+          if (frame === null || frame.hasAttribute('data-sidebar-collapsed') || sidebar === null) return
+          // DSH autofocuses the drawer's own toggle, whose tooltip then covers
+          // the first rows on a phone. Start on the primary action instead.
+          const target = sidebar.querySelector('[class*="_newSession"]')
+            ?? sidebar.querySelector('[data-row-key^="session:"]')
+            ?? sidebar.querySelector('[role="dialog"]')
+            ?? sidebar.querySelector('button, [href], [tabindex]')
+          if (target !== null && target !== undefined && typeof target.focus === 'function') {
+            target.focus({ preventScroll: true })
           }
         }, 80)
       }
@@ -541,6 +563,30 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         const layout = layoutService()
         if (layout !== undefined && frame !== null && !frame.hasAttribute('data-sidebar-collapsed')) layout.toggleSidebar()
         if (menu !== null) menu.focus()
+      }
+
+      /**
+       * DSH switches between its native drawer and the plain sidebar at 768px.
+       * Rotation can cross that boundary without leaving the phone media query,
+       * so the mode must follow the frame instead of being decided once.
+       */
+      const syncDrawerMode = () => {
+        if (frame === null || layer === null) return
+        if (usesNativeDrawer()) {
+          if (scrim !== null) {
+            scrim.removeEventListener('click', onScrimClick)
+            scrim.remove()
+            scrim = null
+          }
+          return
+        }
+        if (scrim === null) {
+          scrim = document.createElement('div')
+          scrim.className = 'd4p-mobile-scrim'
+          scrim.setAttribute('aria-hidden', 'true')
+          layer.append(scrim)
+          scrim.addEventListener('click', onScrimClick)
+        }
       }
 
       const fitSettingsPanel = () => {
@@ -574,7 +620,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         if (event.key !== 'Escape' || frame === null) return
         const layout = layoutService()
         if (layout === undefined) return
-        if (!frame.hasAttribute('data-sidebar-collapsed')) {
+        if (!usesNativeDrawer() && !frame.hasAttribute('data-sidebar-collapsed')) {
           layout.toggleSidebar()
           if (menu !== null) menu.focus()
           return
@@ -604,15 +650,16 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         if (installed) return true
         const candidate = findFrame()
         if (candidate === null || candidate.children === undefined || candidate.children.length < 2) return false
-        const sidebarCandidate = candidate.children[0]
-        const centerCandidate = candidate.children[1]
-        if (sidebarCandidate === undefined || centerCandidate === undefined) return false
+        const sidebarCandidate = findColumn(candidate, '_sidebarCol', 0)
+        const centerCandidate = findColumn(candidate, '_centerCol', 1)
+        const rightbarCandidate = findColumn(candidate, '_rightbarCol', 2)
+        if (sidebarCandidate === null || centerCandidate === null) return false
         if (sidebarCandidate.nodeType !== 1 || centerCandidate.nodeType !== 1) return false
         if (typeof document.createElement !== 'function' || document.head === undefined || document.body === undefined) return false
         frame = candidate
         sidebar = sidebarCandidate
         center = centerCandidate
-        rightbar = candidate.children[2] !== undefined && candidate.children[2].nodeType === 1 ? candidate.children[2] : null
+        rightbar = rightbarCandidate !== null && rightbarCandidate.nodeType === 1 ? rightbarCandidate : null
         installed = true
         root.dataset.d4pMobile = 'true'
         root.dataset.d4pDrawer = 'closed'
@@ -641,19 +688,21 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         menu.className = 'd4p-mobile-menu'
         menu.setAttribute('aria-controls', 'd4p-mobile-drawer')
         menu.innerHTML = MOBILE_MENU_ICON
-        scrim = document.createElement('div')
-        scrim.className = 'd4p-mobile-scrim'
-        scrim.setAttribute('aria-hidden', 'true')
-        layer.append(menu, scrim)
+        layer.append(menu)
         document.body.append(layer)
+        // Reuse DSH's native drawer mask when present; install the fallback
+        // scrim only for the pre-drawer layout.
+        syncDrawerMode()
         menu.addEventListener('click', onMenuClick)
-        scrim.addEventListener('click', onScrimClick)
         sidebar.addEventListener('click', onSidebarClick)
         document.addEventListener('keydown', onKeyDown)
         document.addEventListener('focusin', onFocusIn)
         if (typeof MutationObserver === 'function') {
-          drawerObserver = new MutationObserver(syncState)
-          drawerObserver.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed', 'data-rightbar-collapsed'] })
+          drawerObserver = new MutationObserver(() => {
+            syncDrawerMode()
+            syncState()
+          })
+          drawerObserver.observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed', 'data-rightbar-collapsed', 'data-sidebar-drawer'] })
           settingsObserver = new MutationObserver(() => {
             if (!fitSettingsPanel()) return
             if (frame === null || frame.hasAttribute('data-sidebar-collapsed')) return
