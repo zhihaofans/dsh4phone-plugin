@@ -1226,6 +1226,9 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
 
           return h('div', {
             className: 'd4p-backdrop',
+            // rc.3 desktop only auto-excludes controls inside data-window-drag
+            // rows; this custom fixed overlay needs its own no-drag region.
+            'data-window-drag-exclude': '',
             onMouseDown: (event) => {
               if (event.target === event.currentTarget) setOpen(false)
             },

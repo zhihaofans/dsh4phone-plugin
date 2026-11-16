@@ -8,6 +8,10 @@
 
 - 手机输入框的普通 Enter 改为换行，发送使用右侧发送按钮；Shift+Enter、Ctrl/Cmd+Enter、中文输入法组词以及 `/`、`@` 候选菜单的回车保持原样。
 
+### Fixed
+
+- 桌面端「手机访问」面板声明 `data-window-drag-exclude`，适配 DSH 从 0.2.2-rc.1 起收紧的 macOS 窗口拖拽区规则，避免面板覆盖页头时点击被拖拽区吞掉。
+
 ## [0.0.3] - 2026-11-06
 
 ### Changed
