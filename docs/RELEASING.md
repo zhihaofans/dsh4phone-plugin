@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- `package.json` 已是 `0.0.3`，仍是 `private: true`；npm 上还没有 `dsh4phone`（`npm view dsh4phone` 返回 404）。
-- 已推送 `0.0.2` 附注 tag，指向 `3881baa`；**不要移动或覆盖**。
-- `0.0.3` 尚未打 tag、尚未发布；发布前按下面的检查清单补齐 `private`、`repository` 等字段。
+- `package.json` 已是 `0.0.4`，仍是 `private: true`；npm 上还没有 `dsh4phone`（`npm view dsh4phone` 返回 404）。
+- 已推送 `0.0.2` 附注 tag（指向 `3881baa`）和 `0.0.3` 附注 tag（指向 `72ff87c`）；**不要移动或覆盖**。
+- `0.0.4` 尚未打 tag、尚未发布；发布前按下面的检查清单补齐 `private`、`repository` 等字段。
 
 ## 版本规则
 

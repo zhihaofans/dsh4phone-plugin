@@ -4,9 +4,12 @@
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-11-16
+
 ### Changed
 
 - 手机输入框的普通 Enter 改为换行，发送使用右侧发送按钮；Shift+Enter、Ctrl/Cmd+Enter、中文输入法组词以及 `/`、`@` 候选菜单的回车保持原样。
+- 适配并验证 DSH Desktop 0.2.2-rc.3：移动层、Composer、设置和 Host 侧沿用现有 API，无需迁移。
 
 ### Fixed
 
