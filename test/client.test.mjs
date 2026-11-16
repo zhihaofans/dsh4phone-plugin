@@ -136,6 +136,18 @@ function createElement(tag = 'div') {
     },
     querySelectorAll() { return [] },
     closest() { return null },
+    contains(node) {
+      if (node === element) return true
+      for (const child of element.children) {
+        if (typeof child.contains === 'function' && child.contains(node)) return true
+      }
+      return false
+    },
+    dispatchEvent(event) {
+      element.lastEvent = event
+      element.dispatch(event.type, event)
+      return true
+    },
     focus() {},
     scrollIntoView() {},
   }
@@ -427,6 +439,91 @@ function runComposerTapCase() {
   for (const dispose of disposers.reverse()) dispose()
 }
 
+/**
+ * Mobile Enter: only a plain Enter inside the composer is replaced with the
+ * editor's own insertLineBreak beforeinput. Modifiers, IME and the slash/@
+ * suggestion menu must keep their DSH behavior.
+ */
+class FakeInputEvent {
+  constructor(type, init = {}) {
+    this.type = type
+    Object.assign(this, init)
+    this.defaultPrevented = false
+  }
+  preventDefault() { this.defaultPrevented = true }
+}
+
+function runComposerEnterCase() {
+  const previousInputEvent = globalThis.InputEvent
+  globalThis.InputEvent = FakeInputEvent
+  try {
+    const dom = makeDom({ nativeDrawer: true })
+    const { disposers } = mount(dom)
+    const seat = createElement('div')
+    const editor = createElement('div')
+    editor.isContentEditable = true
+    editor.parentElement = seat
+    editor.closest = (selector) => selector.includes('_composerSeat') ? seat : null
+    dom.document.activeElement = editor
+    dom.document.dispatch('focusin', { target: editor })
+    const press = (overrides = {}) => {
+      let prevented = false
+      let stopped = false
+      const event = {
+        key: 'Enter',
+        keyCode: 13,
+        shiftKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        altKey: false,
+        isComposing: false,
+        target: editor,
+        preventDefault() { prevented = true },
+        stopImmediatePropagation() { stopped = true },
+        ...overrides,
+      }
+      dom.document.dispatch('keydown', event)
+      return { prevented, stopped }
+    }
+    editor.lastEvent = null
+    const plain = press()
+    check('enter: plain Enter is captured', plain.prevented && plain.stopped)
+    check('enter: plain Enter inserts a line break',
+      editor.lastEvent?.type === 'beforeinput' && editor.lastEvent?.inputType === 'insertLineBreak')
+    editor.lastEvent = null
+    const shift = press({ shiftKey: true })
+    check('enter: Shift+Enter stays native', !shift.prevented && editor.lastEvent === null)
+    const ctrl = press({ ctrlKey: true })
+    check('enter: Ctrl+Enter still sends', !ctrl.prevented && editor.lastEvent === null)
+    const composing = press({ isComposing: true })
+    check('enter: IME composition is not intercepted', !composing.prevented && editor.lastEvent === null)
+    editor.lastEvent = null
+    const overlay = createElement('div')
+    overlay.querySelector = (selector) => selector.includes('listbox') ? {} : null
+    const originalQuerySelector = dom.document.querySelector
+    dom.document.querySelector = (selector) => selector === '[data-composer-overlay]' ? overlay : originalQuerySelector(selector)
+    const popup = press()
+    check('enter: suggestion popup keeps its Enter', !popup.prevented && editor.lastEvent === null)
+    dom.document.querySelector = originalQuerySelector
+    // A stale overlay on another retained panel must not override this
+    // composer's own overlay.
+    const staleOverlay = createElement('div')
+    const activeOverlay = createElement('div')
+    activeOverlay.querySelector = (selector) => selector.includes('listbox') ? {} : null
+    seat.querySelector = (selector) => selector === '[data-composer-overlay]' ? activeOverlay : null
+    const staleQuery = dom.document.querySelector
+    dom.document.querySelector = (selector) => selector === '[data-composer-overlay]' ? staleOverlay : staleQuery(selector)
+    editor.lastEvent = null
+    const scopedPopup = press()
+    check('enter: scoped overlay keeps its Enter', !scopedPopup.prevented && editor.lastEvent === null)
+    dom.document.querySelector = staleQuery
+    for (const dispose of disposers.reverse()) dispose()
+  } finally {
+    if (previousInputEvent === undefined) delete globalThis.InputEvent
+    else globalThis.InputEvent = previousInputEvent
+  }
+}
+
 runViewportCase({ matches: true, label: '390px gateway' })
 runViewportCase({ matches: false, label: '1280px gateway' })
 runDrawerCase({ label: '0.2.2 drawer frame', nativeDrawer: true })
@@ -435,6 +532,7 @@ runDrawerCase({ label: '0.2.1 frame', nativeDrawer: false })
 runDrawerModeSwitchCase()
 runKeyboardViewportCase()
 runComposerTapCase()
+runComposerEnterCase()
 
 const failed = results.filter((result) => !result.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)

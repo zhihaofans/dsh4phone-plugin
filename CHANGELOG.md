@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 手机输入框的普通 Enter 改为换行，发送使用右侧发送按钮；Shift+Enter、Ctrl/Cmd+Enter、中文输入法组词以及 `/`、`@` 候选菜单的回车保持原样。
+
 ## [0.0.3] - 2026-11-06
 
 ### Changed

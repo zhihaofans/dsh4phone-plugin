@@ -480,6 +480,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
       let center = null
       let rightbar = null
       let composer = null
+      let composerEditor = null
       let meta = null
       let previousMeta = null
       let unsubscribeLocale = null
@@ -647,6 +648,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
 
       const bindComposer = (editor) => {
         if (editor === null || editor === undefined || typeof editor.closest !== 'function') return
+        composerEditor = editor
         const seat = editor.closest('[class*="_composerSeat"]') ?? editor.parentElement
         if (seat === null || seat === undefined || seat === composer) return
         if (composer !== null) {
@@ -656,6 +658,60 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         composer = seat
         seat.setAttribute('data-d4p-composer', '')
         seat.addEventListener('mousedown', onComposerMouseDown, true)
+      }
+
+      const hasComposerPopup = () => {
+        // data-composer-card is inside the composer seat (not an ancestor);
+        // scope to this seat first so retained/hidden panels cannot supply a
+        // stale overlay when several composers are mounted.
+        const card = typeof composer?.querySelector === 'function' ? composer.querySelector('[data-composer-card]') : null
+        const overlay = card?.querySelector?.('[data-composer-overlay]')
+          ?? composer?.querySelector?.('[data-composer-overlay]')
+          ?? document.querySelector('[data-composer-overlay]')
+        if (overlay === null || overlay === undefined) return false
+        return overlay.querySelector('[role="listbox"], [data-trigger-menu]') !== null
+      }
+
+      /**
+       * Mobile keyboards have no Shift key, so DSH's Enter-to-send would make
+       * multi-line messages impossible. On the phone layer a plain Enter
+       * inserts a line break by replaying DSH's own Shift+Enter path. Modified
+       * Enter, IME composition and the slash/@ suggestion menus stay native.
+       */
+      const onComposerKeyDown = (event) => {
+        if (event.__d4pNewline === true) return
+        if (event.key !== 'Enter' || event.defaultPrevented) return
+        if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return
+        if (event.isComposing || event.keyCode === 229) return
+        if (composer === null || composerEditor === null) return
+        if (typeof composerEditor.contains !== 'function' || !composerEditor.contains(event.target)) return
+        if (composerEditor.hasAttribute('data-composer-composing')) return
+        if (hasComposerPopup()) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        // Drive the editor's own input pipeline. A synthetic Shift+Enter
+        // keydown is ignored by Lexical on iOS Safari, while a synthetic
+        // beforeinput line break is handled on both Safari and Chrome.
+        if (typeof InputEvent === 'function') {
+          composerEditor.dispatchEvent(new InputEvent('beforeinput', {
+            inputType: 'insertLineBreak',
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+          }))
+          return
+        }
+        if (typeof KeyboardEvent !== 'function') return
+        const synthetic = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        })
+        synthetic.__d4pNewline = true
+        composerEditor.dispatchEvent(synthetic)
       }
 
       const NON_TEXT_INPUTS = /^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/u
@@ -813,6 +869,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         menu.addEventListener('click', onMenuClick)
         sidebar.addEventListener('click', onSidebarClick)
         document.addEventListener('keydown', onKeyDown)
+        document.addEventListener('keydown', onComposerKeyDown, true)
         document.addEventListener('focusin', onFocusIn)
         document.addEventListener('focusout', onFocusOut)
         if (typeof MutationObserver === 'function') {
@@ -854,6 +911,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         if (unsubscribeLocale !== null) { unsubscribeLocale(); unsubscribeLocale = null }
         if (typeof document.removeEventListener === 'function') {
           document.removeEventListener('keydown', onKeyDown)
+          document.removeEventListener('keydown', onComposerKeyDown, true)
           document.removeEventListener('focusin', onFocusIn)
           document.removeEventListener('focusout', onFocusOut)
         }
@@ -899,6 +957,7 @@ html[data-d4p-mobile] [role="button"]{touch-action:manipulation}
         center = null
         rightbar = null
         composer = null
+        composerEditor = null
         menu = null
         scrim = null
         layer = null
